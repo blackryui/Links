@@ -22,22 +22,26 @@ describe('ECO headless distribution', () => {
     expect(build).not.toContain("const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack'");
   });
 
-  it('packages one self-contained Windows stdio MCP runtime without Desktop/Electron runtime dependencies', async () => {
+  it('packages one self-contained Windows stdio MCP runtime and config surface without Desktop/Electron dependencies', async () => {
     if (process.platform !== 'win32') return;
 
     const cjsPath = path.join(distRoot, 'eco-mcp.cjs');
     const cmdPath = path.join(distRoot, 'eco-mcp.cmd');
+    const configCjsPath = path.join(distRoot, 'eco-config.cjs');
+    const configCmdPath = path.join(distRoot, 'eco-config.cmd');
     const metadataPath = path.join(distRoot, 'PACKAGE.json');
     const nodePath = path.join(distRoot, 'eco-node.exe');
     const rgPath = path.join(distRoot, 'runtime-tools', 'ripgrep', 'rg.exe');
     const bridgePath = path.join(distRoot, 'windows-capability-bridge.ps1');
 
-    for (const required of [cjsPath, cmdPath, metadataPath, nodePath, rgPath, bridgePath]) {
+    for (const required of [cjsPath, cmdPath, configCjsPath, configCmdPath, metadataPath, nodePath, rgPath, bridgePath]) {
       expect(await exists(required), required).toBe(true);
     }
 
     const bundle = await readFile(cjsPath, 'utf8');
+    const configBundle = await readFile(configCjsPath, 'utf8');
     const cmd = await readFile(cmdPath, 'utf8');
+    const configCmd = await readFile(configCmdPath, 'utf8');
     const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as Record<string, unknown>;
     const generatedIntegrity = await readFile(
       path.join(repositoryRoot, 'packages', 'capabilities', 'src', 'windows-capability-integrity.generated.ts'),
@@ -47,15 +51,22 @@ describe('ECO headless distribution', () => {
 
     expect(bundle).not.toContain("require('electron')");
     expect(bundle).not.toContain('apps/desktop');
+    expect(configBundle).not.toContain("require('electron')");
+    expect(configBundle).not.toContain('apps/desktop');
     expect(cmd).toContain('eco-mcp.cjs');
     expect(cmd).toContain('eco-node.exe');
     expect(cmd).toContain('runtime-tools\\ripgrep');
     expect(cmd).toContain('set "PATH=%RIPGREP_DIR%;%PATH%"');
     expect(cmd).toContain('%*');
+    expect(configCmd).toContain('eco-config.cjs');
+    expect(configCmd).toContain('eco-node.exe');
+    expect(configCmd).toContain('%*');
 
     expect(metadata.name).toBe('ECO Headless MCP');
     expect(metadata.version).toBe('4.13.0');
     expect(metadata.entrypoint).toBe('eco-mcp.cjs');
+    expect(metadata.configEntrypoint).toBe('eco-config.cjs');
+    expect(metadata.configLauncher).toBe('eco-config.cmd');
     expect(metadata.privateNode).toBe('eco-node.exe');
     expect(metadata.privateNodeMajor).toBe(24);
     expect(metadata.privateNodeSha256).toBe(await sha256(nodePath));
