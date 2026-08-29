@@ -109,6 +109,7 @@ function New-EcoMcpCommand {
   $parts = @(
     (ConvertTo-EcoCommandArgument -Value $LauncherPath),
     '--strict-roots',
+    '--trusted-host-approval',
     '--profile',
     (ConvertTo-EcoCommandArgument -Value $PermissionProfile)
   )
