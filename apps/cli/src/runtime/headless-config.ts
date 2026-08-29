@@ -181,7 +181,7 @@ function requireConfigKey(value: string): EcoHeadlessConfigKey {
 function booleanSpec(storageKey: string): SettingSpec {
   return {
     storageKey,
-    encode: (value) => {
+    encode: (value): string => {
       const normalized = value.trim().toLowerCase();
       if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return 'true';
       if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return 'false';
@@ -194,7 +194,7 @@ function booleanSpec(storageKey: string): SettingSpec {
 function integerSpec(storageKey: string, minimum: number, maximum: number): SettingSpec {
   return {
     storageKey,
-    encode: (value) => {
+    encode: (value): string => {
       const parsed = Number(value);
       if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
         throw new Error(`integer value must be between ${minimum} and ${maximum}`);
