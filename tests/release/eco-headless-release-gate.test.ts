@@ -22,12 +22,15 @@ describe('ECO Headless authoritative release gate', () => {
       'test:eco:tunnel',
       'test:eco:integration',
       'docs:tools:check',
+      'validate:eco:upstream',
       'validate:eco:release',
       'test:eco:release-gate',
     ]) {
       expect(verify, `verify:eco missing ${command}`).toContain(command);
     }
     expect(pkg.scripts?.['validate:eco:release']).toContain('--release');
+    expect(pkg.scripts?.['validate:eco:upstream']).toContain('verify-eco-upstream.mjs');
+    expect(pkg.scripts?.['test:eco:release-gate']).toContain('eco-upstream-parity.test.ts');
   });
 
   it('runs explicit ECO stages in deterministic order inside Windows release verification', async () => {
@@ -46,6 +49,7 @@ describe('ECO Headless authoritative release gate', () => {
       'test:eco:tunnel',
       'test:eco:integration',
       'docs:tools:check',
+      'validate:eco:upstream',
       'validate:eco:release',
       'test:eco:release-gate',
     ];
@@ -57,6 +61,7 @@ describe('ECO Headless authoritative release gate', () => {
     }
     expect(script).toContain("@('--filter', '@lnwjud/cli', 'test:eco')");
     expect(script).toContain("@('--filter', '@lnwjud/mcp-server', 'test')");
+    expect(script).toContain("@('validate:eco:upstream')");
     expect(script).toContain("@('validate:eco:release')");
   });
 
