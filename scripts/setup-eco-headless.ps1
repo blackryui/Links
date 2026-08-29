@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'lib\eco-headless-common.ps1')
+. (Join-Path $PSScriptRoot 'lib\eco-runtime-package.ps1')
 
 $profileDir = Get-EcoProfileDir
 $profileName = Get-EcoProfileName
@@ -26,8 +27,8 @@ foreach ($root in $AllowedRoot) {
 if ($resolvedRoots.Count -lt 1) { throw 'At least one explicit allowed root is required.' }
 
 $tunnelClient = Resolve-EcoTunnelClientPath $TunnelClientPath
-$ecoMcp = Resolve-EcoMcpPath $repositoryRoot $EcoMcpPath
-$mcpCommand = New-EcoMcpCommand -EcoMcpPath $ecoMcp -AllowedRoots $resolvedRoots -EnableCodexTools:$EnableCodexTools
+$runtimePackage = Resolve-EcoRuntimePackage -RepositoryRoot $repositoryRoot -EcoMcpPath $EcoMcpPath
+$mcpCommand = New-EcoDirectMcpCommand -RuntimePackage $runtimePackage -AllowedRoots $resolvedRoots -EnableCodexTools:$EnableCodexTools
 
 if ($ReplaceRuntimeKey -or -not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
   $secureKey = Read-Host 'OpenAI Tunnel runtime API key' -AsSecureString
@@ -57,7 +58,8 @@ try {
   Write-Host 'ECO Headless tunnel profile configured.'
   Write-Host "Profile: $profileName"
   Write-Host "Profile directory: $profileDir"
-  Write-Host "ECO MCP: $ecoMcp"
+  Write-Host "ECO private Node: $($runtimePackage.nodePath)"
+  Write-Host "ECO MCP script: $($runtimePackage.scriptPath)"
   Write-Host "Codex delegation tools: $(if ($EnableCodexTools) { 'enabled' } else { 'upstream default/stored setting' })"
   Write-Host 'Allowed roots:'
   $resolvedRoots | ForEach-Object { Write-Host "  - $_" }
