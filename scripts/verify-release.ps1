@@ -90,12 +90,28 @@ try {
     Invoke-ReleaseStage 'package:windows' @('package:windows')
 
     $ecoDistribution = Join-Path $repositoryRoot 'dist\eco-headless'
-    foreach ($ecoArtifactName in @('eco-mcp.cjs', 'eco-mcp.cmd', 'PACKAGE.json')) {
+    $requiredEcoArtifacts = @(
+        'eco-mcp.cjs',
+        'eco-mcp.cmd',
+        'eco-config.cjs',
+        'eco-config.cmd',
+        'eco-node.exe',
+        'windows-capability-bridge.ps1',
+        'runtime-tools\ripgrep\rg.exe',
+        'PACKAGE.json'
+    )
+    foreach ($ecoArtifactName in $requiredEcoArtifacts) {
         $ecoArtifactPath = Join-Path $ecoDistribution $ecoArtifactName
         if (-not (Test-Path -LiteralPath $ecoArtifactPath -PathType Leaf)) {
             throw "ECO packaged-runtime smoke could not find '$ecoArtifactName' in: $ecoDistribution"
         }
         Write-Host "ECO packaged-runtime smoke artifact: $ecoArtifactPath"
+    }
+
+    $ecoPackage = Get-Content -LiteralPath (Join-Path $ecoDistribution 'PACKAGE.json') -Raw | ConvertFrom-Json
+    if ($ecoPackage.privateNodeMajor -ne 24) { throw "ECO packaged runtime is not pinned to private Node 24" }
+    if ($ecoPackage.configEntrypoint -ne 'eco-config.cjs' -or $ecoPackage.configLauncher -ne 'eco-config.cmd') {
+        throw "ECO packaged runtime metadata is missing the headless config surface"
     }
 
     $installerDirectory = Join-Path $repositoryRoot 'apps\desktop\dist\installers'
