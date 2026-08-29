@@ -27,7 +27,8 @@ describe('ECO headless MCP project flow', () => {
     await access(ecoNode);
     await access(ecoBundle);
 
-    const projectRoot = await createProjectFixture();
+    const projectRoot = await createProjectFixture('eco-project-');
+    const secondaryRoot = await createProjectFixture('eco-secondary-');
     const outsideRoot = await createTempRoot('eco-outside-');
     const dataRoot = await createTempRoot('eco-data-');
     await writeFile(path.join(outsideRoot, 'outside.txt'), 'outside boundary\n', 'utf8');
@@ -42,6 +43,7 @@ describe('ECO headless MCP project flow', () => {
         ecoBundle,
         '--strict-roots',
         '--allowed-root', projectRoot,
+        '--allowed-root', secondaryRoot,
         '--workspace', projectRoot,
         '--profile', 'full',
       ],
@@ -67,9 +69,13 @@ describe('ECO headless MCP project flow', () => {
       const listed = await callTool(client, 'workspace_list', {});
       const workspaces = structuredArray(listed, 'value');
       const workspace = workspaces.find((entry) => samePath(String(entry.realRootPath ?? ''), projectRoot));
+      const secondaryWorkspace = workspaces.find((entry) => samePath(String(entry.realRootPath ?? ''), secondaryRoot));
       expect(workspace).toBeDefined();
+      expect(secondaryWorkspace).toBeDefined();
       const workspaceId = String(workspace?.id ?? '');
+      const secondaryWorkspaceId = String(secondaryWorkspace?.id ?? '');
       expect(workspaceId.length).toBeGreaterThan(0);
+      expect(secondaryWorkspaceId.length).toBeGreaterThan(0);
 
       const info = await callTool(client, 'workspace_info', { workspaceId });
       expect(samePath(String(structured(info).realRootPath ?? ''), projectRoot)).toBe(true);
@@ -92,6 +98,18 @@ describe('ECO headless MCP project flow', () => {
         content: 'export const generated = true;\n',
       });
       expect(write.isError).not.toBe(true);
+
+      const secondaryWrite = await callTool(client, 'write_file', {
+        workspaceId: secondaryWorkspaceId,
+        path: 'src/secondary.ts',
+        content: 'export const secondary = true;\n',
+      });
+      expect(secondaryWrite.isError).not.toBe(true);
+      const secondaryRead = await callTool(client, 'read_file', {
+        workspaceId: secondaryWorkspaceId,
+        path: 'src/secondary.ts',
+      });
+      expect(String(structured(secondaryRead).content)).toContain('secondary = true');
 
       const after = await callTool(client, 'read_file', { workspaceId, path: 'src/app.ts' });
       expect(String(structured(after).content)).toContain("value = 'after'");
@@ -126,6 +144,7 @@ describe('ECO headless MCP project flow', () => {
     await access(path.join(dataRoot, 'lnwjud.sqlite'));
     await access(path.join(dataRoot, 'workspace-index'));
     expect(await readFile(path.join(projectRoot, 'src', 'app.ts'), 'utf8')).toContain("value = 'after'");
+    expect(await readFile(path.join(secondaryRoot, 'src', 'secondary.ts'), 'utf8')).toContain('secondary = true');
   }, 60_000);
 });
 
@@ -158,8 +177,8 @@ function stringEnvironment(environment: NodeJS.ProcessEnv): Record<string, strin
   return Object.fromEntries(Object.entries(environment).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
 }
 
-async function createProjectFixture(): Promise<string> {
-  const root = await createTempRoot('eco-project-');
+async function createProjectFixture(prefix: string): Promise<string> {
+  const root = await createTempRoot(prefix);
   await mkdir(path.join(root, 'src'));
   await writeFile(path.join(root, 'src', 'app.ts'), "export const value = 'before';\n", 'utf8');
   await writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'eco-headless-fixture', scripts: { test: 'node --version' } }, null, 2), 'utf8');
