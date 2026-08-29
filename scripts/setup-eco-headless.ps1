@@ -3,7 +3,7 @@
 Configures ECO Headless for OpenAI Secure MCP Tunnel without lnwjud Desktop.
 
 .DESCRIPTION
-Builds/resolves the ECO stdio MCP launcher, requires one or more explicit allowed
+Builds/resolves the ECO stdio MCP runtime, requires one or more explicit allowed
 workspace roots, stores the OpenAI tunnel runtime API key with Windows DPAPI,
 and creates the `eco` tunnel-client profile through the official stdio sample.
 No public MCP port, Desktop process, or Electron host is required.
@@ -42,16 +42,17 @@ $env:TUNNEL_CLIENT_PROFILE_DIR = $profileDir
 
 $roots = @(Resolve-EcoAllowedRoots -AllowedRoot $AllowedRoot)
 $resolvedBundleRoot = Resolve-EcoBundleRoot -BundleRoot $BundleRoot
-$launcherCandidate = Join-Path $resolvedBundleRoot 'eco-mcp.cmd'
+$nodeCandidate = Join-Path $resolvedBundleRoot 'eco-node.exe'
+$bundleCandidate = Join-Path $resolvedBundleRoot 'eco-mcp.cjs'
 
-if (-not (Test-Path -LiteralPath $launcherCandidate -PathType Leaf)) {
+if (-not (Test-Path -LiteralPath $nodeCandidate -PathType Leaf) -or -not (Test-Path -LiteralPath $bundleCandidate -PathType Leaf)) {
   if ($SkipBuild) {
-    throw "ECO MCP launcher not found: $launcherCandidate"
+    throw "ECO MCP runtime not found in: $resolvedBundleRoot"
   }
   $repositoryRoot = Get-EcoRepositoryRoot
   $rootPackage = Join-Path $repositoryRoot 'package.json'
   if (-not (Test-Path -LiteralPath $rootPackage -PathType Leaf)) {
-    throw "ECO MCP launcher not found and source checkout is unavailable: $launcherCandidate"
+    throw "ECO MCP runtime is missing and source checkout is unavailable: $resolvedBundleRoot"
   }
   Push-Location $repositoryRoot
   try {
@@ -63,9 +64,13 @@ if (-not (Test-Path -LiteralPath $launcherCandidate -PathType Leaf)) {
   }
 }
 
-$launcherPath = Resolve-EcoMcpLauncherPath -BundleRoot $resolvedBundleRoot
+$runtimePaths = Resolve-EcoMcpRuntimePaths -BundleRoot $resolvedBundleRoot
 $clientPath = Resolve-EcoTunnelClientPath -TunnelClientPath $TunnelClientPath
-$mcpCommand = New-EcoMcpCommand -LauncherPath $launcherPath -AllowedRoots $roots -PermissionProfile $PermissionProfile
+$mcpCommand = New-EcoMcpCommand `
+  -NodePath $runtimePaths.nodePath `
+  -BundlePath $runtimePaths.bundlePath `
+  -AllowedRoots $roots `
+  -PermissionProfile $PermissionProfile
 $secretPath = Get-EcoSecretPath -ProfileDirectory $profileDir
 
 if ($null -eq $RuntimeApiKey) {
@@ -110,11 +115,14 @@ try {
     profile = $script:EcoProfileName
     tunnelId = $TunnelId
     tunnelClientPath = $clientPath
-    bundleRoot = $resolvedBundleRoot
-    launcherPath = $launcherPath
+    bundleRoot = $runtimePaths.bundleRoot
+    launcherPath = $runtimePaths.launcherPath
+    nodePath = $runtimePaths.nodePath
+    bundlePath = $runtimePaths.bundlePath
     permissionProfile = $PermissionProfile
     allowedRoots = @($roots)
     transport = 'stdio'
+    trustedHostApproval = $true
     configuredAt = (Get-Date).ToUniversalTime().ToString('o')
   }
   Write-EcoConfig -Config $config -ProfileDirectory $profileDir
@@ -131,10 +139,12 @@ Write-Host ''
 Write-Host 'ECO Headless configured successfully.'
 Write-Host ("Profile:       {0}" -f $script:EcoProfileName)
 Write-Host ("Profile dir:   {0}" -f $profileDir)
-Write-Host ("MCP launcher:  {0}" -f $launcherPath)
+Write-Host ("Node runtime:  {0}" -f $runtimePaths.nodePath)
+Write-Host ("MCP bundle:    {0}" -f $runtimePaths.bundlePath)
 Write-Host ("Tunnel client: {0}" -f $clientPath)
 Write-Host ("Permission:    {0}" -f $PermissionProfile)
 Write-Host 'Allowed roots:'
 $roots | ForEach-Object { Write-Host ("  - {0}" -f $_) }
+Write-Host 'Trusted host approval: enabled for this generated ChatGPT tunnel command.'
 Write-Host 'Runtime API key: stored locally with Windows DPAPI (value not shown).'
 Write-Host 'Next: run scripts\start-eco-tunnel.ps1'
