@@ -60,7 +60,10 @@ if ($alreadyRegistered) {
   if ($LASTEXITCODE -ne 0) { throw "codex mcp remove failed with exit code $LASTEXITCODE" }
 }
 
-$runtimeArgs = @('--strict-roots', '--profile', $permissionProfile)
+# Trusted host approval is explicit. ToolRegistry still requires the tool's own
+# userConfirmed marker and permission/destructive rules before this host layer
+# is reached; the flag maps Codex's host approval surface to the final provider.
+$runtimeArgs = @('--strict-roots', '--trusted-host-approval', '--profile', $permissionProfile)
 foreach ($root in $allowedRoots) {
   $runtimeArgs += '--allowed-root'
   $runtimeArgs += $root
