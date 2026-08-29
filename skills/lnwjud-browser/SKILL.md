@@ -1,6 +1,6 @@
 ---
 name: lnwjud-browser
-description: Use for browser and web-app work through lnwjud's managed Chrome/CDP capabilities, including DOM snapshots, accessibility observations, Set-of-Marks, console/network context, browser debugging, and controlled target actions.
+description: Use when browser or web-app work should run through lnwjud's managed Chrome/CDP capabilities, including DOM snapshots, accessibility observations, Set-of-Marks, console/network context, browser debugging, and controlled target actions.
 ---
 
 # lnwjud Browser
