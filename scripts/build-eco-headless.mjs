@@ -35,15 +35,15 @@ async function runPowerShell(scriptPath) {
   ], { cwd: root, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
 }
 
-async function runEsbuild() {
+async function runEsbuild(entry, outfile) {
   const commandProcessor = process.env.ComSpec ?? process.env.COMSPEC ?? 'cmd.exe';
   const command = [
     'corepack pnpm@10.15.0 --filter @lnwjud/desktop exec esbuild',
-    '../cli/src/bin/mcp-stdio.ts',
+    entry,
     '--bundle',
     '--platform=node',
     '--format=cjs',
-    '--outfile=../../dist/eco-headless/eco-mcp.cjs',
+    `--outfile=${outfile}`,
   ].join(' ');
   await execFileAsync(commandProcessor, ['/d', '/s', '/c', command], {
     cwd: root,
@@ -69,9 +69,10 @@ async function build() {
   await mkdir(distRoot, { recursive: true });
 
   // Reuse the exact esbuild dependency already owned by @lnwjud/desktop as a
-  // build tool only. The generated runtime is the CLI stdio entrypoint and
-  // contains no Electron/Desktop host import.
-  await runEsbuild();
+  // build tool only. Both generated programs are CLI/headless entrypoints and
+  // contain no Electron/Desktop host import.
+  await runEsbuild('../cli/src/bin/mcp-stdio.ts', '../../dist/eco-headless/eco-mcp.cjs');
+  await runEsbuild('../cli/src/bin/eco-config.ts', '../../dist/eco-headless/eco-config.cjs');
 
   // Match upstream packaged stdio behavior: carry a private Node 24 runtime
   // and verified ripgrep so ECO search/runtime do not depend on system PATH.
@@ -95,7 +96,7 @@ async function build() {
     windowsOcrIncluded = true;
   }
 
-  const launcher = [
+  const mcpLauncher = [
     '@echo off',
     'setlocal',
     'set "BASE=%~dp0"',
@@ -118,7 +119,26 @@ async function build() {
     '"%NODE_EXE%" "%SCRIPT%" %*',
     '',
   ].join('\r\n');
-  await writeFile(path.join(distRoot, 'eco-mcp.cmd'), launcher, 'utf8');
+  await writeFile(path.join(distRoot, 'eco-mcp.cmd'), mcpLauncher, 'utf8');
+
+  const configLauncher = [
+    '@echo off',
+    'setlocal',
+    'set "BASE=%~dp0"',
+    'set "SCRIPT=%BASE%eco-config.cjs"',
+    'set "NODE_EXE=%BASE%eco-node.exe"',
+    'if not exist "%SCRIPT%" (',
+    '  echo ECO config launcher missing: %SCRIPT% 1>&2',
+    '  exit /b 1',
+    ')',
+    'if not exist "%NODE_EXE%" (',
+    '  echo ECO private Node runtime missing: %NODE_EXE% 1>&2',
+    '  exit /b 1',
+    ')',
+    '"%NODE_EXE%" "%SCRIPT%" %*',
+    '',
+  ].join('\r\n');
+  await writeFile(path.join(distRoot, 'eco-config.cmd'), configLauncher, 'utf8');
 
   const rgPath = path.join(ripgrepTarget, 'rg.exe');
   const metadata = {
@@ -127,6 +147,8 @@ async function build() {
     sourceCommit: await sourceCommit(),
     entrypoint: 'eco-mcp.cjs',
     launcher: 'eco-mcp.cmd',
+    configEntrypoint: 'eco-config.cjs',
+    configLauncher: 'eco-config.cmd',
     privateNode: 'eco-node.exe',
     privateNodeMajor: nodeMajor,
     privateNodeSha256: await sha256(nodeTarget),
