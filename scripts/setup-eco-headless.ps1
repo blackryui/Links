@@ -41,12 +41,13 @@ try {
   $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
   $env:TUNNEL_CLIENT_PROFILE_DIR = $profileDir
 
-  & $tunnelClient init @(
+  $initArgs = @(
     '--sample', 'sample_mcp_stdio_local',
     '--profile', 'eco',
     '--tunnel-id', $TunnelId,
     '--mcp-command', $mcpCommand
   )
+  & $tunnelClient init @initArgs
   if ($LASTEXITCODE -ne 0) { throw "tunnel-client init failed with exit code $LASTEXITCODE" }
 
   & $tunnelClient doctor --profile $profileName --profile-dir $profileDir --explain
