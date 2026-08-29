@@ -22,6 +22,10 @@ function writeJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+function isConfigKey(value: string): value is (typeof ECO_HEADLESS_CONFIG_KEYS)[number] {
+  return (ECO_HEADLESS_CONFIG_KEYS as readonly string[]).includes(value);
+}
+
 function main(argv: readonly string[]): number {
   const dataPath = resolveLnwjudDataPath(process.env);
   const command = argv[2];
@@ -33,11 +37,9 @@ function main(argv: readonly string[]): number {
 
   if (command === 'get' && argv.length === 4) {
     const key = argv[3]!;
+    if (!isConfigKey(key)) throw new Error(`Unknown ECO headless config key: ${key}`);
     const config = readEcoHeadlessConfig(dataPath);
-    if (!ECO_HEADLESS_CONFIG_KEYS.includes(key as (typeof ECO_HEADLESS_CONFIG_KEYS)[number])) {
-      throw new Error(`Unknown ECO headless config key: ${key}`);
-    }
-    writeJson({ key, value: config[key as keyof typeof config] });
+    writeJson({ key, value: config[key] });
     return 0;
   }
 
