@@ -185,11 +185,11 @@ export async function runHeadlessMcp(
   );
 
   let shuttingDown = false;
-  let handle: ReturnType<typeof startMcpStdio> | undefined;
+  const handleRef: { current?: ReturnType<typeof startMcpStdio> } = {};
   const close = async (): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
-    try { await handle?.close(); } catch { /* transport may already be closed */ }
+    try { await handleRef.current?.close(); } catch { /* transport may already be closed */ }
     try { await runtime.close(); } catch { /* runtime may already be closing */ }
   };
   const shutdownAndExit = async (): Promise<void> => {
@@ -197,7 +197,7 @@ export async function runHeadlessMcp(
     process.exit(0);
   };
 
-  handle = startMcpStdio({
+  handleRef.current = startMcpStdio({
     services: runtime.services,
     actor: runtime.actor,
     activityTracker: runtime.activityTracker,
