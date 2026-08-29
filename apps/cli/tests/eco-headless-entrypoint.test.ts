@@ -53,4 +53,15 @@ describe('ECO shared headless MCP entrypoint', () => {
       expect(runtime).toMatch(new RegExp(`\\b${family}\\b\\s*(?::|,)`));
     }
   });
+
+  it('maps all explicitly strict allowed roots into the active workspace set while preserving one primary workspace', async () => {
+    const runtime = await readFile(runtimePath, 'utf8');
+    const bootstrap = await readFile(bootstrapPath, 'utf8');
+
+    expect(runtime).toContain('activeWorkspaceScopesProvider');
+    expect(runtime).toContain('strictAllowedRoots');
+    expect(runtime).toContain('workspaceRepository.list()');
+    expect(bootstrap).toContain('activeWorkspaceScopesProvider: runtime.activeWorkspaceScopesProvider');
+    expect(bootstrap).toContain('activeWorkspaceScopeProvider: runtime.activeWorkspaceScopeProvider');
+  });
 });
