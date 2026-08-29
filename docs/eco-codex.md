@@ -2,11 +2,20 @@
 
 ECO Headless uses the same local stdio MCP entrypoint for Codex that OpenAI Secure MCP Tunnel uses for ChatGPT. There is no second Codex-specific MCP server and no duplicated ToolRegistry.
 
+## Two Codex roles
+
+Codex can participate in ECO in two different ways:
+
+1. **Codex as an MCP client** — Codex connects to `eco-mcp.cmd` and uses the same Project/runtime tools as ChatGPT. This does not require the optional `codex_*` tools.
+2. **Codex as a delegated worker** — ChatGPT/ECO may call the six optional `codex_*` tools to delegate coding/review work to the locally installed Codex runtime. This remains opt-in, matching lnwjud's upstream default.
+
 ## Prerequisites
 
 - Build ECO Headless so `dist\eco-headless\eco-mcp.cmd` exists.
 - Choose one or more explicit Windows project roots.
 - Install/authenticate the current Codex CLI normally. ECO does not read, copy, or manage Codex credential files.
+
+The packaged ECO runtime is self-contained for Node and ripgrep: `eco-mcp.cmd` uses the bundled private Node 24 runtime and bundled verified `rg.exe`. A system Node/ripgrep installation is not required for the packaged ECO runtime.
 
 ## Register ECO as a local stdio MCP server
 
@@ -23,6 +32,28 @@ codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roo
 ```
 
 The server registration is named `eco`; the command is the same `eco-mcp.cmd` generated for the ChatGPT Secure MCP Tunnel path.
+
+## Optional: expose `codex_*` delegation tools
+
+When you intentionally want ECO/ChatGPT to delegate work back to local Codex, add:
+
+```text
+--enable-codex-tools
+```
+
+For example:
+
+```text
+codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\path\to\project --workspace C:\path\to\project --profile full --enable-codex-tools
+```
+
+This is a process-level ECO override. It does not rewrite the saved lnwjud setting and does not change the upstream default. `--disable-codex-tools` is the explicit inverse; using both flags together is rejected.
+
+For ChatGPT's Secure MCP Tunnel profile, the equivalent setup option is:
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-eco-headless.ps1 -TunnelId <tunnel id> -AllowedRoot C:\path\to\project -EnableCodexTools
+```
 
 ## Verify registration
 
@@ -53,7 +84,7 @@ Prefer `codex mcp add` when available so the installed Codex version owns config
 - ECO reuses the existing lnwjud CLI runtime and `packages/mcp-server` ToolRegistry.
 - Strict roots are the default ECO deployment boundary.
 - The `full` profile does not remove critical-file, destructive, recovery, or path protections.
-- The optional `codex_*` delegation tools inside ECO are separate from Codex using ECO as an MCP client. They remain disabled unless the existing lnwjud runtime setting enables them.
+- `codex_*` delegation remains opt-in even though Codex itself can always be an ECO MCP client when registered.
 - Never add Codex API tokens, ChatGPT tunnel Runtime API keys, or other credentials to the ECO MCP command or repository configuration.
 
 ## One runtime, two clients
