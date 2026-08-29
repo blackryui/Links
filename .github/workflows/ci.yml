@@ -7,6 +7,7 @@ on:
       - 'release/v*'
   pull_request:
     branches: [ main ]
+  # Manual dispatch is available once this workflow version exists on the default branch.
   workflow_dispatch:
 
 permissions:
