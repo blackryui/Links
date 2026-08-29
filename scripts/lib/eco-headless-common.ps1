@@ -33,6 +33,11 @@ function Get-EcoStopPath {
   return (Join-Path $ProfileDirectory 'eco.tunnel.stop')
 }
 
+function Get-EcoConfigPath {
+  param([string]$ProfileDirectory = (Get-EcoProfileDirectory))
+  return (Join-Path $ProfileDirectory 'eco.headless.config.json')
+}
+
 function Resolve-EcoBundleRoot {
   param([string]$BundleRoot)
   if (-not [string]::IsNullOrWhiteSpace($BundleRoot)) { return [IO.Path]::GetFullPath($BundleRoot) }
@@ -116,6 +121,32 @@ function New-EcoMcpCommand {
   return ($parts -join ' ')
 }
 
+function Read-EcoConfig {
+  param([string]$ProfileDirectory = (Get-EcoProfileDirectory))
+  $configPath = Get-EcoConfigPath -ProfileDirectory $ProfileDirectory
+  if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { return $null }
+  try {
+    return (Get-Content -LiteralPath $configPath -Raw -ErrorAction Stop | ConvertFrom-Json)
+  } catch {
+    throw "ECO headless config is invalid: $configPath"
+  }
+}
+
+function Write-EcoConfig {
+  param(
+    [Parameter(Mandatory = $true)]$Config,
+    [string]$ProfileDirectory = (Get-EcoProfileDirectory)
+  )
+  $configPath = Get-EcoConfigPath -ProfileDirectory $ProfileDirectory
+  $tempPath = $configPath + '.tmp.' + [guid]::NewGuid().ToString('N')
+  try {
+    $Config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tempPath -Encoding UTF8
+    Move-Item -LiteralPath $tempPath -Destination $configPath -Force
+  } finally {
+    Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
 function Read-EcoOwnerRecord {
   param([string]$ProfileDirectory = (Get-EcoProfileDirectory))
   $ownerPath = Get-EcoOwnerPath -ProfileDirectory $ProfileDirectory
@@ -125,6 +156,12 @@ function Read-EcoOwnerRecord {
   } catch {
     return $null
   }
+}
+
+function Get-EcoProcessStartedAt {
+  param([Parameter(Mandatory = $true)][int]$ProcessId)
+  $process = Get-Process -Id $ProcessId -ErrorAction Stop
+  return $process.StartTime.ToUniversalTime().ToString('o')
 }
 
 function Test-EcoProcessIdentity {
@@ -138,4 +175,39 @@ function Test-EcoProcessIdentity {
   } catch {
     return $false
   }
+}
+
+function Write-EcoOwnerRecord {
+  param(
+    [Parameter(Mandatory = $true)]$Record,
+    [string]$ProfileDirectory = (Get-EcoProfileDirectory)
+  )
+  $ownerPath = Get-EcoOwnerPath -ProfileDirectory $ProfileDirectory
+  $tempPath = $ownerPath + '.tmp.' + [guid]::NewGuid().ToString('N')
+  try {
+    $Record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tempPath -Encoding UTF8
+    Move-Item -LiteralPath $tempPath -Destination $ownerPath -Force
+  } finally {
+    Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Test-EcoOwnerRecordIdentity {
+  param($Owner)
+  if ($null -eq $Owner) { return $false }
+  return (Test-EcoProcessIdentity -ProcessId ([int]$Owner.ownerPid) -ExpectedStartedAt ([string]$Owner.ownerStartedAt))
+}
+
+function Remove-EcoOwnerRecordIfOwned {
+  param(
+    [Parameter(Mandatory = $true)]$Owner,
+    [string]$ProfileDirectory = (Get-EcoProfileDirectory)
+  )
+  $current = Read-EcoOwnerRecord -ProfileDirectory $ProfileDirectory
+  if ($null -eq $current) { return $true }
+  if ([int]$current.ownerPid -ne [int]$Owner.ownerPid -or [string]$current.ownerStartedAt -ne [string]$Owner.ownerStartedAt) {
+    return $false
+  }
+  Remove-Item -LiteralPath (Get-EcoOwnerPath -ProfileDirectory $ProfileDirectory) -Force -ErrorAction SilentlyContinue
+  return $true
 }
