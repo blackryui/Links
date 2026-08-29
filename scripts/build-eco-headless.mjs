@@ -8,7 +8,6 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = path.join(root, 'dist', 'eco-headless');
-const bundlePath = path.join(distRoot, 'eco-mcp.cjs');
 const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 
 async function sourceCommit() {
@@ -21,15 +20,19 @@ async function build() {
   await rm(distRoot, { recursive: true, force: true });
   await mkdir(distRoot, { recursive: true });
 
+  // Reuse the exact esbuild dependency already owned by @lnwjud/desktop as a
+  // build tool only. `pnpm --filter ... exec` runs from apps/desktop, so keep
+  // entry/output paths relative to that workspace. The resulting bundle is
+  // the CLI stdio runtime and must contain no Electron/Desktop runtime import.
   await execFileAsync(corepack, [
     'pnpm@10.15.0',
     '--filter', '@lnwjud/desktop',
     'exec', 'esbuild',
-    'apps/cli/src/bin/mcp-stdio.ts',
+    '../cli/src/bin/mcp-stdio.ts',
     '--bundle',
     '--platform=node',
     '--format=cjs',
-    `--outfile=${path.relative(root, bundlePath).replace(/\\/g, '/')}`,
+    '--outfile=../../dist/eco-headless/eco-mcp.cjs',
   ], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
 
   await writeFile(
