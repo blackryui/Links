@@ -22,8 +22,9 @@ describe('ECO Headless release gate', () => {
       expect(source).not.toContain('lnwjud.exe');
     }
 
-    expect(docs).toContain('ChatGPT Web -> OpenAI Secure MCP Tunnel -> tunnel-client -> eco-mcp stdio');
+    expect(docs).toContain('ChatGPT Web -> OpenAI Secure MCP Tunnel -> tunnel-client -> eco-node.exe + eco-mcp.cjs (stdio)');
     expect(docs).toContain('Codex local');
+    expect(docs).toContain('eco-mcp.cmd convenience launcher');
     expect(docs).toContain('No `lnwjud.exe` or Electron process is required');
     expect(docs).toContain('Release parity additionally requires');
   });
