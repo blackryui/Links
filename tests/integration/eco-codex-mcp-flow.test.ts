@@ -14,9 +14,10 @@ afterEach(async () => {
 });
 
 describe('ECO Codex MCP registration contract', () => {
-  it('uses the same eco-mcp stdio entrypoint as the Secure MCP Tunnel', async () => {
+  it('uses the same packaged runtime as the Secure MCP Tunnel', async () => {
     const codexDoc = await readText(path.join(root, 'docs', 'eco-codex.md'));
     const setup = await readText(path.join(root, 'scripts', 'setup-eco-headless.ps1'));
+    const runtimePackage = await readText(path.join(root, 'scripts', 'lib', 'eco-runtime-package.ps1'));
     const build = await readText(path.join(root, 'scripts', 'build-eco-headless.mjs'));
 
     expect(codexDoc).toContain('codex mcp add eco --');
@@ -26,7 +27,11 @@ describe('ECO Codex MCP registration contract', () => {
     expect(codexDoc).toContain('codex mcp get eco --json');
     expect(codexDoc).not.toContain('codex-mcp-server');
 
-    expect(setup).toContain('eco-mcp');
+    expect(setup).toContain('Resolve-EcoRuntimePackage');
+    expect(setup).toContain('New-EcoDirectMcpCommand');
+    expect(runtimePackage).toContain('eco-node.exe');
+    expect(runtimePackage).toContain('eco-mcp.cjs');
+    expect(runtimePackage).not.toContain('eco-mcp.cmd');
     expect(build).toContain('eco-mcp.cjs');
     expect(build).toContain('eco-mcp.cmd');
   });
