@@ -221,8 +221,6 @@ function New-EcoMcpCommand {
   }
   $parts += '--workspace'
   $parts += (ConvertTo-EcoQuotedArgument $AllowedRoots[0])
-  $parts += '--profile'
-  $parts += 'full'
   if ($EnableCodexTools) { $parts += '--enable-codex-tools' }
   return ($parts -join ' ')
 }
