@@ -7,7 +7,7 @@ const setupPath = path.join(root, 'scripts', 'setup-eco-headless.ps1');
 const commonPath = path.join(root, 'scripts', 'lib', 'eco-headless-common.ps1');
 
 describe('ECO Secure MCP Tunnel stdio profile', () => {
-  it('uses the official tunnel-client stdio init flow with strict roots', async () => {
+  it('uses the official tunnel-client stdio init flow with strict roots and trusted host approval', async () => {
     const setup = await readFile(setupPath, 'utf8');
     const common = await readFile(commonPath, 'utf8');
     const combined = `${common}\n${setup}`;
@@ -20,6 +20,7 @@ describe('ECO Secure MCP Tunnel stdio profile', () => {
     expect(common).toContain('--allowed-root');
     expect(common).toContain('eco-mcp.cmd');
     expect(common).toContain('--workspace');
+    expect(common).toContain('--trusted-host-approval');
 
     expect(combined).not.toContain('server_urls:');
     expect(combined).not.toContain('lnwjud.exe');
