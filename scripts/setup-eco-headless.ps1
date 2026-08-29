@@ -104,6 +104,20 @@ try {
   Write-Host 'ECO headless: validating tunnel profile ...'
   & $clientPath doctor --profile $script:EcoProfileName --profile-dir $profileDir --explain
   if ($LASTEXITCODE -ne 0) { throw "tunnel-client doctor failed with exit code $LASTEXITCODE" }
+
+  $config = [ordered]@{
+    schemaVersion = 1
+    profile = $script:EcoProfileName
+    tunnelId = $TunnelId
+    tunnelClientPath = $clientPath
+    bundleRoot = $resolvedBundleRoot
+    launcherPath = $launcherPath
+    permissionProfile = $PermissionProfile
+    allowedRoots = @($roots)
+    transport = 'stdio'
+    configuredAt = (Get-Date).ToUniversalTime().ToString('o')
+  }
+  Write-EcoConfig -Config $config -ProfileDirectory $profileDir
 }
 finally {
   if ($keyPointer -ne [IntPtr]::Zero) {
