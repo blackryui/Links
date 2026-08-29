@@ -1,6 +1,6 @@
 ---
 name: lnwjud-development
-description: Use for software-development work through lnwjud: Git inspection, code navigation, implementation, project test/lint/typecheck/build commands, review context, affected tests, or optional local Codex delegation.
+description: Use when software-development work should run through lnwjud, including Git inspection, code navigation, implementation, project test/lint/typecheck/build commands, review context, affected tests, or optional local Codex delegation.
 ---
 
 # lnwjud Development
