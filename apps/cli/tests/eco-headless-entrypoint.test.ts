@@ -64,4 +64,11 @@ describe('ECO shared headless MCP entrypoint', () => {
     expect(bootstrap).toContain('activeWorkspaceScopesProvider: runtime.activeWorkspaceScopesProvider');
     expect(bootstrap).toContain('activeWorkspaceScopeProvider: runtime.activeWorkspaceScopeProvider');
   });
+
+  it('keeps destructive host approval fail-closed unless the launcher explicitly trusts the client host', async () => {
+    const bootstrap = await readFile(bootstrapPath, 'utf8');
+    expect(bootstrap).toContain("hasFlag(argv, '--trusted-host-approval')");
+    expect(bootstrap).toContain('hostMutationApprovalProvider');
+    expect(bootstrap).toContain('trustedHostApproval ? async (): Promise<boolean> => true : undefined');
+  });
 });
