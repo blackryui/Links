@@ -1,6 +1,6 @@
 # ECO ChatGPT Web Plugin Setup
 
-ECO is the ChatGPT-facing identity for the current lnwjud-compatible Windows agent runtime. The primary ECO path is headless: ChatGPT reaches the local runtime through OpenAI Secure MCP Tunnel, and tunnel-client launches `eco-mcp` over stdio. lnwjud Desktop/Electron is not required.
+ECO is the ChatGPT-facing identity for the current lnwjud-compatible Windows agent runtime. The primary ECO path is headless: ChatGPT reaches the local runtime through OpenAI Secure MCP Tunnel, and tunnel-client launches the packaged private Node executable with `eco-mcp.cjs` over stdio. lnwjud Desktop/Electron is not required.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ ChatGPT Web
   -> ECO plugin metadata + lnwjud routing skills
   -> OpenAI Secure MCP Tunnel
   -> tunnel-client
-  -> eco-mcp stdio
+  -> eco-node.exe + eco-mcp.cjs (stdio)
   -> shared lnwjud CLI runtime
   -> shared packages/mcp-server ToolRegistry
   -> Windows / Files / Git / Shell / Browser / WSL / Office / Codex-capable tools
@@ -33,13 +33,16 @@ Never commit Runtime API keys, tunnel credentials, connector credentials, Codex 
 corepack pnpm@10.15.0 build:eco
 ```
 
-The runtime entrypoint is:
+The packaged runtime includes:
 
 ```text
+dist\eco-headless\eco-node.exe
+dist\eco-headless\eco-mcp.cjs
 dist\eco-headless\eco-mcp.cmd
+dist\eco-headless\runtime-tools\ripgrep\rg.exe
 ```
 
-It reuses the existing CLI runtime and ToolRegistry; ECO does not duplicate tool schemas.
+The Secure MCP Tunnel uses `eco-node.exe + eco-mcp.cjs` directly because tunnel-client launches stdio commands as executables. `eco-mcp.cmd` remains a convenience launcher for local users/Codex. Both paths reach the same shared CLI runtime and ToolRegistry; ECO does not duplicate tool schemas.
 
 ## 2. Configure the Secure MCP Tunnel
 
@@ -49,7 +52,7 @@ Run the headless setup script with the real tunnel ID and explicit project root:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-eco-headless.ps1 -TunnelId <your tunnel id> -AllowedRoot C:\path\to\project
 ```
 
-The script configures the tunnel profile `eco` using the OpenAI stdio MCP sample, sets `eco-mcp.cmd` as the MCP command with `--strict-roots`, stores the Runtime API key with Windows user-protected local storage, and runs `tunnel-client doctor`.
+The script configures the tunnel profile `eco` using the OpenAI stdio MCP sample, sets the private `eco-node.exe` plus `eco-mcp.cjs` as the MCP command with `--strict-roots`, stores the Runtime API key with Windows user-protected local storage, and runs `tunnel-client doctor`.
 
 Do not send the Runtime API key through ChatGPT or store it in the repository.
 
@@ -95,7 +98,7 @@ Use ECO to list registered workspaces, report Git status for the active project,
 The verified path should be:
 
 ```text
-ChatGPT -> ECO -> Secure MCP Tunnel -> eco-mcp stdio -> shared lnwjud runtime -> local project
+ChatGPT -> ECO -> Secure MCP Tunnel -> eco-node.exe + eco-mcp.cjs -> shared lnwjud runtime -> local project
 ```
 
 ## 6. Verify one controlled write
@@ -126,7 +129,7 @@ A workspace-specific `.app.json` must be added only when a real verified connect
 
 ## Codex
 
-Codex local uses the same `eco-mcp.cmd` stdio command. See `docs/eco-codex.md`.
+Codex local may use the convenience `eco-mcp.cmd` launcher; the underlying executable/runtime remains the same packaged `eco-node.exe + eco-mcp.cjs`. See `docs/eco-codex.md`.
 
 ## Legacy Desktop path
 
