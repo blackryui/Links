@@ -78,7 +78,7 @@ async function createValidFixture(): Promise<string> {
   await mkdir(path.join(root, 'docs'), { recursive: true });
   await writeFile(
     path.join(root, 'docs', 'chatgpt-plugin.md'),
-    '# ECO ChatGPT Web Plugin Setup\n\nECO uses Secure MCP Tunnel to reach eco-mcp stdio with --strict-roots and Codex support.\n',
+    '# ECO ChatGPT Web Plugin Setup\n\nECO uses Secure MCP Tunnel to reach eco-node.exe + eco-mcp.cjs over stdio with --strict-roots and Codex support.\n',
     'utf8',
   );
   await writeFile(path.join(root, 'docs', 'eco-headless.md'), '# ECO Headless\n\nHeadless runtime fixture.\n', 'utf8');
@@ -200,7 +200,7 @@ describe('ChatGPT plugin package', () => {
 
   it('documents ECO headless tunnel, Codex, and app-binding lifecycle without permanent tool-count proof', async () => {
     const doc = await readFile(path.join(repositoryRoot, 'docs', 'chatgpt-plugin.md'), 'utf8');
-    for (const concept of ['ECO', 'Secure MCP Tunnel', 'eco-mcp stdio', '--strict-roots', 'Codex', '.app.json', 'Refresh connector']) {
+    for (const concept of ['ECO', 'Secure MCP Tunnel', 'eco-node.exe + eco-mcp.cjs', 'over stdio', '--strict-roots', 'Codex', '.app.json', 'Refresh connector']) {
       expect(doc).toContain(concept);
     }
     expect(doc).not.toMatch(/\b221\b|\b227\b/);
