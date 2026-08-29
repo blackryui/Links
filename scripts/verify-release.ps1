@@ -65,23 +65,26 @@ try {
     Invoke-ReleaseStage 'test:plugin' @('test:plugin')
     Invoke-ReleaseStage 'validate:plugin' @('validate:plugin')
 
-    # ECO Headless feature-parity gates. These are explicit so CI logs identify
-    # the exact failed contract rather than hiding failures under one aggregate.
+    # ECO parity/runtime contracts that do not require a packaged ECO artifact.
     Invoke-ReleaseStage 'test:eco:parity' @('test:eco:parity')
     Invoke-ReleaseStage 'validate:eco:parity' @('validate:eco:parity')
     Invoke-ReleaseStage 'test:eco:cli' @('--filter', '@lnwjud/cli', 'test:eco')
     Invoke-ReleaseStage 'test:eco:mcp-server' @('--filter', '@lnwjud/mcp-server', 'test')
-    Invoke-ReleaseStage 'build:eco' @('build:eco')
-    Invoke-ReleaseStage 'test:eco:packaging' @('test:eco:packaging')
-    Invoke-ReleaseStage 'test:eco:tunnel' @('test:eco:tunnel')
-    Invoke-ReleaseStage 'test:eco:integration' @('test:eco:integration')
 
-    # Preserve the complete upstream-compatible release suite as well.
+    # Preserve the exact upstream-compatible release-stage ordering expected by
+    # the existing release-gate contract before ECO-specific packaging stages.
     Invoke-ReleaseStage 'test:release' @('test:release')
     Invoke-ReleaseStage 'test:acceptance' @('test:acceptance')
     Invoke-ReleaseStage 'test:integration' @('test:integration')
     Invoke-ReleaseStage 'test:e2e' @('test:e2e')
     Invoke-ReleaseStage 'build' @('build')
+
+    # Build and verify ECO only after the shared workspace build is green.
+    Invoke-ReleaseStage 'build:eco' @('build:eco')
+    Invoke-ReleaseStage 'test:eco:packaging' @('test:eco:packaging')
+    Invoke-ReleaseStage 'test:eco:tunnel' @('test:eco:tunnel')
+    Invoke-ReleaseStage 'test:eco:integration' @('test:eco:integration')
+
     Invoke-ReleaseStage 'docs:tools:check' @('docs:tools:check')
 
     # Release-mode parity runs only after the live tool catalog has been checked.
