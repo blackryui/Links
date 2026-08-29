@@ -1,0 +1,47 @@
+{
+  "name": "lnwjud",
+  "version": "4.13.0",
+  "description": "ChatGPT and Codex workflows for the lnwjud Windows-first local MCP gateway.",
+  "author": {
+    "name": "Adisorn / lnwjud project",
+    "url": "https://github.com/engasnm111/lnwjud"
+  },
+  "homepage": "https://github.com/blackryui/Links",
+  "repository": "https://github.com/blackryui/Links",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "chatgpt",
+    "codex",
+    "windows",
+    "automation",
+    "local-agent",
+    "development"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "lnwjud",
+    "shortDescription": "Use ChatGPT with lnwjud on your Windows machine",
+    "longDescription": "Routes ChatGPT and Codex workflows to the connected lnwjud MCP runtime. Files, processes, Windows automation, browser control, Office actions, and other side effects continue to run on the user's Windows machine under lnwjud permissions and approval boundaries.",
+    "developerName": "lnwjud project",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/blackryui/Links",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "defaultPrompt": [
+      "Use lnwjud to list workspaces, show Git status for the active project, and summarize the top-level tree without changes.",
+      "Use lnwjud to inspect this project, make the requested code change, run the narrow relevant tests, and show the Git diff.",
+      "Use lnwjud to observe the Windows target first, then perform only the requested UI action within current permissions."
+    ],
+    "brandColor": "#0078D4",
+    "composerIcon": "./assets/logo/logo-256x256.png",
+    "logo": "./assets/logo/logo-256x256.png",
+    "logoDark": "./assets/logo/logo-256x256.png",
+    "screenshots": []
+  }
+}
