@@ -87,7 +87,7 @@ describe('ECO headless real MCP project flow', () => {
       expect(JSON.stringify(checkpoints)).toContain('app.ts');
 
       const indexedScan = await callTool(client, 'workspace_full_scan', { workspaceId, includeIgnored: false, pageSize: 100 });
-      expect(JSON.stringify(indexedScan)).toContain('src/app.ts');
+      expect(containsRelativeFilePath(indexedScan, path.join('src', 'app.ts'))).toBe(true);
 
       const snapshot = await callTool(client, 'project_snapshot', { workspaceId });
       expect(JSON.stringify(snapshot)).toContain('git');
@@ -147,6 +147,20 @@ function containsWorkspaceRoot(value: unknown, expectedRoot: string): boolean {
       const candidate = record[key];
       if (typeof candidate === 'string' && path.normalize(candidate).toLowerCase() === target) return true;
     }
+    return Object.values(record).some(visit);
+  };
+  return visit(value);
+}
+
+function containsRelativeFilePath(value: unknown, expectedPath: string): boolean {
+  const target = path.normalize(expectedPath).toLowerCase();
+  const seen = new Set<unknown>();
+  const visit = (current: unknown): boolean => {
+    if (current === null || typeof current !== 'object' || seen.has(current)) return false;
+    seen.add(current);
+    if (Array.isArray(current)) return current.some(visit);
+    const record = current as Record<string, unknown>;
+    if (typeof record.path === 'string' && path.normalize(record.path).toLowerCase() === target) return true;
     return Object.values(record).some(visit);
   };
   return visit(value);
