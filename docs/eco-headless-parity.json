@@ -12,125 +12,25 @@
     "version": "4.13.0"
   },
   "categories": [
-    {
-      "id": "mcp-transport-protocol",
-      "classification": "shared",
-      "evidence": ["packages/mcp-server/src/server.ts", "packages/mcp-server/src/stdio.ts", "apps/cli/src/bin/mcp-stdio.ts"],
-      "tests": ["packages/mcp-server/src/stdio.integration.test.ts", "packages/mcp-server/src/tasks-protocol.integration.test.ts"]
-    },
-    {
-      "id": "tool-registry-schemas",
-      "classification": "shared",
-      "evidence": ["packages/mcp-server/src/tool-registry.ts", "packages/mcp-server/src/tool-schema-registry.ts", "scripts/generate-tool-catalog.mjs"],
-      "tests": ["packages/mcp-server/src/tool-registry.test.ts", "docs:tools:check"]
-    },
-    {
-      "id": "workspace-project",
-      "classification": "shared",
-      "evidence": ["apps/cli/src/bin/mcp-stdio.ts", "apps/cli/src/runtime/stdio-mcp-runtime.ts", "packages/application/src/project-service.ts"],
-      "tests": ["apps/cli/src/runtime/stdio-mcp-runtime.test.ts", "apps/cli/tests/eco-headless-parity.test.ts"]
-    },
-    {
-      "id": "files-checkpoints-recovery",
-      "classification": "shared",
-      "evidence": ["packages/application/src/file-service.ts", "packages/application/src/checkpoint-service.ts", "packages/mcp-server/src/replacement-recovery.ts"],
-      "tests": ["packages/application/src/file-service-write.test.ts", "packages/application/src/checkpoint-service.test.ts", "packages/mcp-server/src/external-replacement-recovery.test.ts"]
-    },
-    {
-      "id": "git",
-      "classification": "shared",
-      "evidence": ["packages/application/src/git-service.ts", "packages/git/src/git-adapter.ts", "packages/mcp-server/src/git-denial-boundary.test.ts"],
-      "tests": ["packages/application/src/git-service.test.ts", "packages/application/src/git-service-denial-regression.test.ts"]
-    },
-    {
-      "id": "process-project-commands",
-      "classification": "shared",
-      "evidence": ["packages/application/src/process-service.ts", "packages/capabilities/src/shell-backend.ts", "packages/capabilities/src/durable-shell-task-store.ts"],
-      "tests": ["packages/application/src/process-service.test.ts", "packages/application/src/process-project-command-safety.test.ts", "packages/capabilities/src/durable-shell-task-store.test.ts"]
-    },
-    {
-      "id": "search-index-context",
-      "classification": "shared",
-      "evidence": ["packages/application/src/workspace-index.ts", "packages/mcp-server/src/context-engine.ts", "apps/cli/src/runtime/stdio-mcp-runtime.ts"],
-      "tests": ["packages/mcp-server/src/context-engine.test.ts", "apps/cli/src/runtime/stdio-mcp-runtime.test.ts"]
-    },
-    {
-      "id": "browser-cdp",
-      "classification": "shared",
-      "evidence": ["packages/capabilities/src/browser-cdp-backend.ts", "packages/capabilities/src/browser-cdp-protocol.ts", "apps/cli/src/runtime/stdio-mcp-runtime.ts"],
-      "tests": ["packages/capabilities/src/browser-cdp-backend.test.ts", "apps/cli/src/runtime/stdio-mcp-runtime.test.ts"]
-    },
-    {
-      "id": "windows-native-accessibility-input-vision",
-      "classification": "optional-dependency",
-      "evidence": ["packages/capabilities/src/windows-native-backend.ts", "packages/capabilities/src/windows-bridge.ts", "packages/capabilities/src/windows-ocr-backend.ts"],
-      "tests": ["packages/capabilities/src/windows-native-backend.test.ts", "packages/capabilities/src/windows-bridge-integrity.test.ts", "packages/capabilities/src/windows-ocr-backend.test.ts"]
-    },
-    {
-      "id": "wsl",
-      "classification": "optional-dependency",
-      "evidence": ["packages/capabilities/src/wsl-backend.ts", "apps/cli/src/runtime/stdio-mcp-runtime.ts"],
-      "tests": ["packages/capabilities/src/wsl-backend.test.ts", "apps/cli/src/runtime/stdio-mcp-runtime.test.ts"]
-    },
-    {
-      "id": "office-document-workbook",
-      "classification": "shared",
-      "evidence": ["packages/mcp-server/src/document-runtime.ts", "packages/mcp-server/src/tool-registry.ts"],
-      "tests": ["packages/mcp-server/src/document-runtime.test.ts", "apps/cli/tests/eco-headless-parity.test.ts"]
-    },
-    {
-      "id": "system-event-log-scheduler-web-fetch",
-      "classification": "optional-dependency",
-      "evidence": ["packages/capabilities/src/event-log-backend.ts", "packages/capabilities/src/scheduler-backend.ts", "packages/capabilities/src/web-fetch-backend.ts"],
-      "tests": ["packages/capabilities/src/event-log-backend.test.ts", "packages/capabilities/src/scheduler-backend.test.ts", "packages/capabilities/src/web-fetch-backend.test.ts"]
-    },
-    {
-      "id": "extensions-skills-child-mcp",
-      "classification": "shared",
-      "evidence": ["packages/extensions/src/extensions-service.ts", "packages/extensions/src/mcp-session-manager.ts", "packages/extensions/src/skill-catalog.ts"],
-      "tests": ["packages/extensions/src/extensions-service.test.ts", "apps/cli/src/runtime/stdio-mcp-runtime.test.ts"]
-    },
-    {
-      "id": "audit-activity",
-      "classification": "shared",
-      "evidence": ["packages/audit/src/audit-service.ts", "packages/mcp-server/src/activity-tracker.ts", "packages/mcp-server/src/activity-log-file.ts"],
-      "tests": ["packages/audit/src/audit-service.test.ts", "packages/mcp-server/src/activity-tracker.test.ts", "packages/mcp-server/src/activity-log-file.test.ts"]
-    },
-    {
-      "id": "sqlite-settings-backups",
-      "classification": "shared",
-      "evidence": ["packages/storage/src", "apps/cli/src/runtime/stdio-mcp-runtime.ts", "apps/cli/src/bin/mcp-stdio.ts"],
-      "tests": ["apps/cli/src/runtime/stdio-mcp-runtime.test.ts", "apps/cli/src/runtime/workspace-reset.test.ts"]
-    },
-    {
-      "id": "goals-continuations-tasks",
-      "classification": "shared",
-      "evidence": ["packages/application/src/goal-continuation-service.ts", "packages/application/src/scheduled-continuation-service.ts", "packages/mcp-server/src/tasks-protocol.ts"],
-      "tests": ["packages/application/src/scheduled-continuation-service.test.ts", "packages/mcp-server/src/tasks-protocol.test.ts", "packages/mcp-server/src/scheduled-continuation-fence.test.ts"]
-    },
-    {
-      "id": "codex-delegation",
-      "classification": "optional-dependency",
-      "evidence": ["packages/codex/src/codex-discovery.ts", "packages/codex/src/codex-adapter.ts", "packages/mcp-server/src/tools/codex-tools.ts"],
-      "tests": ["packages/application/src/codex-service.test.ts", "packages/codex/src/codex-adapter.test.ts", "packages/codex/src/codex-sandbox.test.ts"]
-    },
-    {
-      "id": "tunnel-lifecycle",
-      "classification": "blocked",
-      "evidence": ["scripts/start-lnwjud-tunnel.ps1", "docs/superpowers/specs/2026-08-29-eco-headless-windows-design.md"],
-      "tests": ["tests/packaging/eco-tunnel-profile.test.ts", "tests/packaging/eco-tunnel-lifecycle.test.ts"]
-    },
-    {
-      "id": "upgrade-update-runtime-state",
-      "classification": "blocked",
-      "evidence": ["packages/mcp-server/src/upgrade-catalog.ts", "apps/desktop/src/main/update-install.ts", "docs/superpowers/specs/2026-08-29-eco-headless-feature-parity-amendment.md"],
-      "tests": ["tests/release/eco-headless-release-gate.test.ts", "scripts/verify-eco-parity.mjs --release"]
-    },
-    {
-      "id": "security-permission-destructive-policy",
-      "classification": "headless-adapter",
-      "evidence": ["packages/mcp-server/src/mutation-policy.ts", "packages/mcp-server/src/destructive-policy.ts", "packages/mcp-server/src/destructive-scope.ts", "apps/cli/src/runtime/strict-workspace-repository.ts"],
-      "tests": ["packages/mcp-server/src/mutation-policy.test.ts", "packages/mcp-server/src/destructive-policy.test.ts", "packages/mcp-server/src/destructive-scope.test.ts", "apps/cli/src/runtime/strict-workspace-repository.test.ts"]
-    }
+    {"id":"mcp-transport-protocol","classification":"shared","evidence":["packages/mcp-server/src/server.ts","packages/mcp-server/src/stdio.ts","apps/cli/src/runtime/headless-mcp-bootstrap.ts"],"tests":["packages/mcp-server/src/stdio.integration.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"tool-registry-schemas","classification":"shared","evidence":["packages/mcp-server/src/tool-registry.ts","packages/mcp-server/src/tool-schema-registry.ts","scripts/generate-tool-catalog.mjs"],"tests":["packages/mcp-server/src/tool-registry.test.ts","docs:tools:check"]},
+    {"id":"workspace-project","classification":"shared","evidence":["apps/cli/src/runtime/headless-mcp-bootstrap.ts","apps/cli/src/runtime/stdio-mcp-runtime.ts","packages/application/src/project-service.ts"],"tests":["apps/cli/src/runtime/stdio-mcp-runtime.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"files-checkpoints-recovery","classification":"shared","evidence":["packages/application/src/file-service.ts","packages/application/src/checkpoint-service.ts","packages/mcp-server/src/replacement-recovery.ts"],"tests":["packages/application/src/file-service-write.test.ts","packages/application/src/checkpoint-service.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"git","classification":"shared","evidence":["packages/application/src/git-service.ts","packages/git/src/git-adapter.ts","packages/mcp-server/src/tools/git-tools.ts"],"tests":["packages/application/src/git-service.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"process-project-commands","classification":"shared","evidence":["packages/application/src/process-service.ts","packages/capabilities/src/shell-backend.ts","packages/capabilities/src/durable-shell-task-store.ts"],"tests":["packages/application/src/process-service.test.ts","packages/capabilities/src/durable-shell-task-store.test.ts"]},
+    {"id":"search-index-context","classification":"shared","evidence":["packages/application/src/workspace-index.ts","packages/mcp-server/src/context-engine.ts","apps/cli/src/runtime/stdio-mcp-runtime.ts"],"tests":["packages/mcp-server/src/context-engine.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"browser-cdp","classification":"shared","evidence":["packages/capabilities/src/browser-cdp-backend.ts","packages/capabilities/src/browser-cdp-protocol.ts","apps/cli/src/runtime/stdio-mcp-runtime.ts"],"tests":["packages/capabilities/src/browser-cdp-backend.test.ts","tests/integration/eco-capability-catalog.test.ts"]},
+    {"id":"windows-native-accessibility-input-vision","classification":"optional-dependency","evidence":["packages/capabilities/src/windows-native-backend.ts","packages/capabilities/src/windows-bridge.ts","packages/capabilities/src/windows-ocr-backend.ts"],"tests":["packages/capabilities/src/windows-native-backend.test.ts","packages/capabilities/src/windows-bridge-integrity.test.ts","tests/integration/eco-capability-catalog.test.ts"]},
+    {"id":"wsl","classification":"optional-dependency","evidence":["packages/capabilities/src/wsl-backend.ts","apps/cli/src/runtime/stdio-mcp-runtime.ts"],"tests":["packages/capabilities/src/wsl-backend.test.ts","tests/integration/eco-capability-catalog.test.ts"]},
+    {"id":"office-document-workbook","classification":"optional-dependency","evidence":["packages/mcp-server/src/document-runtime.ts","packages/mcp-server/src/tools/capability-tools.ts"],"tests":["packages/mcp-server/src/document-runtime.test.ts","tests/integration/eco-capability-catalog.test.ts"]},
+    {"id":"system-event-log-scheduler-web-fetch","classification":"optional-dependency","evidence":["packages/capabilities/src/event-log-backend.ts","packages/capabilities/src/scheduler-backend.ts","packages/capabilities/src/web-fetch-backend.ts"],"tests":["packages/capabilities/src/event-log-backend.test.ts","packages/capabilities/src/scheduler-backend.test.ts","tests/integration/eco-capability-catalog.test.ts"]},
+    {"id":"extensions-skills-child-mcp","classification":"shared","evidence":["packages/extensions/src/extensions-service.ts","packages/extensions/src/mcp-session-manager.ts","packages/extensions/src/skill-catalog.ts"],"tests":["packages/extensions/src/extensions-service.test.ts","apps/cli/src/runtime/stdio-mcp-runtime.test.ts"]},
+    {"id":"audit-activity","classification":"shared","evidence":["packages/audit/src/audit-service.ts","packages/mcp-server/src/activity-tracker.ts","packages/mcp-server/src/activity-log-file.ts"],"tests":["packages/audit/src/audit-service.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"sqlite-settings-backups","classification":"shared","evidence":["packages/storage/src","apps/cli/src/runtime/stdio-mcp-runtime.ts","apps/cli/src/runtime/headless-mcp-bootstrap.ts"],"tests":["apps/cli/src/runtime/stdio-mcp-runtime.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]},
+    {"id":"goals-continuations-tasks","classification":"shared","evidence":["packages/application/src/goal-continuation-service.ts","packages/application/src/scheduled-continuation-service.ts","packages/mcp-server/src/tasks-protocol.ts"],"tests":["packages/application/src/scheduled-continuation-service.test.ts","packages/mcp-server/src/tasks-protocol.test.ts"]},
+    {"id":"codex-delegation","classification":"optional-dependency","evidence":["packages/codex/src/codex-discovery.ts","packages/codex/src/codex-adapter.ts","packages/mcp-server/src/tools/codex-tools.ts","docs/eco-codex.md"],"tests":["packages/application/src/codex-service.test.ts","tests/integration/eco-codex-mcp-flow.test.ts"]},
+    {"id":"tunnel-lifecycle","classification":"headless-adapter","evidence":["scripts/setup-eco-headless.ps1","scripts/start-eco-tunnel.ps1","scripts/stop-eco-tunnel.ps1","scripts/status-eco-tunnel.ps1"],"tests":["tests/packaging/eco-tunnel-profile.test.ts","tests/packaging/eco-tunnel-lifecycle.test.ts"]},
+    {"id":"upgrade-update-runtime-state","classification":"ui-replaced","evidence":["packages/mcp-server/src/upgrade-catalog.ts","docs/eco-headless.md","scripts/build-eco-headless.mjs"],"tests":["tests/release/eco-headless-release-gate.test.ts","scripts/verify-eco-parity.mjs --release"]},
+    {"id":"security-permission-destructive-policy","classification":"headless-adapter","evidence":["packages/mcp-server/src/mutation-policy.ts","packages/mcp-server/src/destructive-policy.ts","packages/mcp-server/src/destructive-scope.ts","apps/cli/src/runtime/strict-workspace-repository.ts","scripts/setup-eco-headless.ps1"],"tests":["packages/mcp-server/src/mutation-policy.test.ts","packages/mcp-server/src/destructive-policy.test.ts","apps/cli/src/runtime/strict-workspace-repository.test.ts","tests/integration/eco-headless-mcp-flow.test.ts"]}
   ]
 }
