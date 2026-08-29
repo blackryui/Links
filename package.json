@@ -15,7 +15,7 @@
     "test:release": "corepack pnpm@10.15.0 -r --workspace-concurrency=1 --if-present test",
     "test:plugin": "vitest run tests/plugin/*.test.ts",
     "validate:plugin": "node scripts/validate-chatgpt-plugin.mjs --root .",
-    "test:eco:parity": "corepack pnpm@10.15.0 --filter @lnwjud/cli exec vitest run tests/eco-headless-parity.test.ts tests/eco-headless-entrypoint.test.ts tests/eco-codex-tools-option.test.ts",
+    "test:eco:parity": "corepack pnpm@10.15.0 --filter @lnwjud/cli exec vitest run tests/eco-headless-parity.test.ts tests/eco-headless-entrypoint.test.ts tests/eco-codex-tools-option.test.ts tests/eco-headless-config.test.ts tests/eco-headless-config-cli.test.ts",
     "validate:eco:parity": "node scripts/verify-eco-parity.mjs --root .",
     "validate:eco:release": "node scripts/verify-eco-parity.mjs --root . --release",
     "build:eco": "node scripts/build-eco-headless.mjs",
