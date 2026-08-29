@@ -15,6 +15,13 @@ async function sha256(filePath: string): Promise<string> {
 }
 
 describe('ECO headless distribution', () => {
+  it('uses the Windows command processor for the Corepack .cmd build boundary', async () => {
+    const build = await readFile(path.join(repositoryRoot, 'scripts', 'build-eco-headless.mjs'), 'utf8');
+    expect(build).toContain('process.env.ComSpec');
+    expect(build).toContain("'/d', '/s', '/c'");
+    expect(build).not.toContain("const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack'");
+  });
+
   it('packages one self-contained Windows stdio MCP runtime without Desktop/Electron runtime dependencies', async () => {
     if (process.platform !== 'win32') return;
 
