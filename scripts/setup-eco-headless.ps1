@@ -39,6 +39,7 @@ try {
   $secureKey = ConvertTo-SecureString -String $encrypted
   $keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
   $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
+  $env:TUNNEL_CLIENT_PROFILE_DIR = $profileDir
 
   & $tunnelClient init @(
     '--sample', 'sample_mcp_stdio_local',
@@ -61,4 +62,5 @@ try {
 finally {
   if ($null -ne $keyPointer) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer) }
   Remove-Item Env:CONTROL_PLANE_API_KEY -ErrorAction SilentlyContinue
+  Remove-Item Env:TUNNEL_CLIENT_PROFILE_DIR -ErrorAction SilentlyContinue
 }
