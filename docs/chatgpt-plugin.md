@@ -1,141 +1,174 @@
-# ECO ChatGPT Web Plugin Setup
+# ECO Headless ChatGPT Web Plugin Setup
 
-ECO is the ChatGPT-facing plugin identity for the existing lnwjud Windows runtime. The runtime, MCP ToolRegistry, internal skill namespaces, local permissions, and Windows execution model remain lnwjud-compatible; only the user-facing ChatGPT plugin identity is branded ECO.
+ECO is the ChatGPT-facing identity for the latest compatible lnwjud Windows agent runtime, hosted as a headless stdio MCP process. ChatGPT reaches ECO through OpenAI Secure MCP Tunnel; no lnwjud Desktop, Electron host, public inbound MCP port, or loopback HTTP MCP server is required.
+
+For full Windows operator setup, lifecycle and Codex integration, see `docs/eco-headless.md`.
 
 ## Architecture
 
 ```text
-ChatGPT Web / Codex
-  -> ECO plugin metadata + lnwjud routing skills
-  -> workspace-associated OpenAI Secure MCP Tunnel
-  -> bundled tunnel-client
-  -> lnwjud Desktop loopback HTTP MCP
-  -> selected Active Project(s) on the user's Windows machine
+ChatGPT Web
+  -> ECO plugin metadata + shared routing skills
+  -> OpenAI Secure MCP Tunnel
+  -> tunnel-client.exe
+  -> stdio
+  -> eco-mcp.cmd
+  -> eco-node.exe + eco-mcp.cjs
+  -> shared apps/cli MCP runtime
+  -> shared packages/mcp-server ToolRegistry
+  -> configured Windows project roots and local capabilities
 ```
 
-The Desktop MCP endpoint remains loopback-only. ECO does not publish `127.0.0.1` or `localhost` to the Internet and does not require a public inbound port.
+The plugin does not copy tool schemas. Live MCP schemas and behavior come from the shared ToolRegistry.
 
 ## Prerequisites
 
 - Windows 10/11 x64.
-- lnwjud Desktop v4.13.0 or a newer compatible release.
-- At least one registered workspace selected as an Active Project.
-- A reviewed lnwjud permission profile.
+- ECO Headless distribution built/configured with `scripts/setup-eco-headless.ps1`.
+- At least one explicit strict allowed project root.
 - An OpenAI Secure MCP Tunnel associated with the ChatGPT workspace that will use ECO.
-- A runtime API key with the permissions required by the current OpenAI tunnel setup.
+- A locally stored tunnel runtime API key. Never commit the key or paste it into documentation.
+- A ChatGPT workspace/plan with the custom-app/developer capabilities required for the intended read/write actions.
 
-Never commit the runtime key, tunnel credentials, connector credentials, or other secrets to this repository.
+## 1. Configure ECO Headless
 
-## 1. Start the local runtime
+Build from source when needed:
 
-1. Launch lnwjud Desktop.
-2. Register/select the project that ECO is allowed to inspect.
-3. Set Active Project(s) and Primary Project as needed.
-4. Review the Desktop permission profile before connecting ChatGPT.
-
-ECO adds no new authority. Effective authority is still bounded by ChatGPT permissions, workspace capability, Secure MCP Tunnel availability, the lnwjud permission profile, Active Project boundaries, and native exact-action approval.
-
-## 2. Configure the OpenAI Secure MCP Tunnel
-
-In lnwjud Desktop, open **Settings -> OpenAI Secure MCP Tunnel**.
-
-1. Create or select the OpenAI tunnel for the intended Platform organization and ChatGPT workspace.
-2. Create the restricted runtime API key required to use that tunnel.
-3. Save the runtime key in lnwjud; do not paste it into Git or documentation.
-4. Enter the real tunnel ID and run **Configure Tunnel**.
-5. Start/reconnect the tunnel and confirm the Desktop MCP/tunnel path is healthy.
-
-The tunnel must target the Desktop loopback MCP selected by lnwjud. Do not replace this with a public reverse proxy to the local MCP port.
-
-## 3. Create the ChatGPT connection as ECO
-
-In the ChatGPT workspace that will use the connection:
-
-1. Enable Developer mode when required for custom connections.
-2. Open Plugins/Connections.
-3. Create a connection using **Tunnel**.
-4. Select the existing tunnel or paste the real tunnel ID when requested.
-5. Use the connection name **ECO**.
-6. Confirm that ChatGPT can discover the lnwjud MCP tools through ECO.
-
-If lnwjud is upgraded or its tool schemas change, use **Refresh connector**. If a conversation still has stale tool metadata, open a new chat after refreshing.
-
-## 4. Load the ECO plugin package
-
-The repository package entrypoint is `.codex-plugin/plugin.json`. It exposes the plugin machine name `eco`, display name `ECO`, and six internal `lnwjud-*` routing skills.
-
-The internal skill names stay `lnwjud-*` deliberately so existing runtime/tool behavior is not forked or duplicated.
-
-### Stage A: package-ready
-
-The public repository contains:
-
-- `.codex-plugin/plugin.json`
-- six routing skills
-- static validation/tests
-- this setup guide
-
-The public repository intentionally contains no guessed `.app.json` connector identifier.
-
-### Stage B: workspace-bound app binding
-
-After ChatGPT creates a real app/connector identity for the ECO connection, use that verified identifier only if the package-loading flow requires `.app.json`.
-
-Do not commit a placeholder connector ID. If the identifier is workspace-specific and should remain private, keep the binding private and leave the public repository at Stage A.
-
-## 5. Verify read-only access first
-
-Use a low-risk smoke prompt first:
-
-```text
-Use ECO to list registered workspaces, report Git status for the active project, and summarize the top-level project tree. Do not modify anything.
+```powershell
+corepack pnpm@10.15.0 build:eco
 ```
 
-This verifies the path:
+Configure the real tunnel and project root:
 
-```text
-ChatGPT -> ECO -> Secure MCP Tunnel -> lnwjud Desktop MCP -> local workspace tools
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-eco-headless.ps1 `
+  -TunnelId tunnel_your_real_id `
+  -AllowedRoot 'C:\Work\your-project' `
+  -PermissionProfile full
 ```
 
-## 6. Verify one controlled write
+Setup prompts for the runtime API key using a secure PowerShell prompt and stores only its Windows-DPAPI encrypted representation outside the repository.
 
-After read-only access succeeds, test one exact text change in a disposable or version-controlled project. Ask ECO to make the change with lnwjud file-edit tools, run a narrow verification, and show the Git diff.
+The generated MCP command is stdio-first and includes `--strict-roots`, explicit `--allowed-root` values and the selected primary `--workspace`.
 
-ChatGPT permission prompts and lnwjud native exact-action approval are separate controls. Denial at either layer must stop the action.
+## 2. Start ECO
 
-## Tool count: 221 default / 227 configurable
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-eco-tunnel.ps1
+```
 
-lnwjud v4.13.0 contains **227 configurable MCP tools**. The normal runtime advertises **221** because the six `codex_*` delegation tools remain opt-in.
+Inspect state:
 
-ECO does not change that default. The live lnwjud MCP ToolRegistry remains the source of truth; ECO only supplies plugin metadata and workflow routing.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\status-eco-tunnel.ps1
+```
+
+Stop only the ECO-owned tunnel process:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop-eco-tunnel.ps1
+```
+
+## 3. Create the ChatGPT ECO connection
+
+In the ChatGPT workspace that owns or can access the associated Secure MCP Tunnel:
+
+1. Enable Developer mode when the workspace requires it for a custom app.
+2. Open Apps/Connections and create a custom app named **ECO**.
+3. Choose **Tunnel** as the connection type.
+4. Select the associated tunnel or enter the real tunnel ID when requested by the UI.
+5. Scan/refresh tools, then create/save the app.
+6. Start with read-only project inspection.
+
+If ECO/lnwjud tool schemas change, use **Refresh connector** (or the current equivalent refresh action) and start a new conversation if the old chat retains stale tool metadata.
+
+## 4. Load the plugin package
+
+The package entrypoint is `.codex-plugin/plugin.json`:
+
+- machine name: `eco`
+- display name: `ECO`
+- capabilities: `Interactive`, `Read`, `Write`
+- routing skills: six internal `lnwjud-*` compatibility skill directories
+
+The internal skill names remain stable intentionally so ECO follows the shared runtime instead of maintaining a forked schema layer.
+
+The public repository must not contain a guessed `.app.json`. Add a binding only after ChatGPT supplies a real app/connector identifier and only when that identifier is appropriate to store.
+
+## 5. Read-only smoke test
+
+```text
+Use ECO to list available workspaces, report Git status for the configured project, and summarize the top-level tree. Do not modify anything.
+```
+
+Expected path:
+
+```text
+ChatGPT -> ECO -> Secure MCP Tunnel -> stdio -> eco-mcp -> shared ToolRegistry -> project
+```
+
+## 6. Controlled write smoke test
+
+After the read-only path succeeds:
+
+```text
+Use ECO to make one exact text edit inside the configured project, verify the result, and show the Git diff. Do not modify anything outside the configured roots.
+```
+
+A write must still satisfy the effective host permission, permission-profile, strict-root, Active Project/workspace, secret/path and tool-specific safety rules.
+
+## 7. Codex uses the same runtime
+
+Register the same ECO bundle with local Codex:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-eco-codex.ps1
+```
+
+The script delegates Codex configuration to the official `codex mcp` CLI and does not edit `.codex/config.toml` directly.
+
+Both paths share one runtime:
+
+```text
+ChatGPT -> Secure MCP Tunnel -> ECO stdio MCP
+Codex local -----------------> ECO stdio MCP
+```
+
+## Feature parity
+
+ECO follows the current lnwjud runtime baseline recorded in `docs/eco-headless-parity.json`. The shared ToolRegistry is authoritative. For the current v4.13.0 baseline, the catalog advertises 221 tools by default and six `codex_*` tools remain optional; future ECO versions follow upstream registry changes rather than freezing those counts.
+
+Release parity includes project/workspace behavior, files/checkpoints/recovery, Git/process, browser, Windows, WSL, Office, system capabilities, extensions/child MCP, SQLite/audit/backup state, goals/tasks/continuations, Codex, tunnel lifecycle and destructive-policy semantics.
 
 ## Security boundaries
 
 ```text
-ChatGPT plugin permissions
-AND ChatGPT workspace capabilities
+ChatGPT app/workspace permissions
 AND Secure MCP Tunnel availability
-AND lnwjud Desktop permission profile
-AND Active Project mutation boundary
-AND native exact-action approval where required
+AND ECO/lnwjud permission profile
+AND explicit strict allowed roots
+AND Active Project/workspace mutation boundaries
+AND tool-specific confirmation/destructive policy
+AND path/secret/critical-file protection
 ```
 
-The most restrictive layer wins. ECO must not route around any denial by substituting shell, browser, UI, or coordinate automation.
+ECO must not route around a denial by substituting a less-safe shell/UI/browser path.
 
 ## Troubleshooting
 
-- **Tunnel offline:** check lnwjud Desktop MCP health, saved tunnel configuration, runtime key availability, and tunnel process state.
-- **Old tools/schema in ChatGPT:** use **Refresh connector** and open a new chat if the old schema remains cached.
-- **ChatGPT denies an action:** review ChatGPT/plugin permissions and workspace capability.
-- **lnwjud denies an action:** review the Desktop permission profile and Active Project scope.
-- **Native approval denied/cancelled:** keep the operation blocked.
-- **`codex_*` tools missing:** normal when delegation is disabled; runtime remains at 221 advertised tools.
+- **Tunnel offline:** run `status-eco-tunnel.ps1`, inspect `%APPDATA%\tunnel-client\eco-tunnel.log`, then run setup/doctor again if configuration is invalid.
+- **Runtime key missing:** re-run `setup-eco-headless.ps1`; do not store the plaintext key in Git.
+- **Project denied:** review the explicit allowed roots and permission profile.
+- **Old ChatGPT tool schema:** refresh the ECO connector/app and open a new chat if needed.
+- **`codex_*` tools missing:** normal while optional local Codex delegation is disabled.
+- **Local capability unavailable:** verify the shared capability prerequisite (Office, WSL, OCR helper, browser, etc.) rather than removing the capability family.
 
 ## Repository validation
 
 ```text
 corepack pnpm@10.15.0 test:plugin
 corepack pnpm@10.15.0 validate:plugin
+corepack pnpm@10.15.0 validate:eco:parity
 ```
 
-The release verification gate also runs the plugin checks before broader lnwjud release checks.
+ECO must not be called feature-parity complete until the Windows ChatGPT and Codex acceptance smoke tests also pass without a Desktop/Electron process.
