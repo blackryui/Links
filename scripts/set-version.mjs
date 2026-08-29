@@ -26,6 +26,14 @@ async function syncAllVersions() {
   // 1. Root package.json
   await updatePackageJson(rootPkgPath, version);
 
+  // 2. ChatGPT/Codex plugin manifest, when this additive package is present.
+  const pluginManifestPath = path.join(rootDir, '.codex-plugin', 'plugin.json');
+  try {
+    await updatePackageJson(pluginManifestPath, version);
+  } catch {
+    // Plugin packaging is optional in upstream-compatible checkouts.
+  }
+
   // 2. Apps package.json
   const appsDir = path.join(rootDir, 'apps');
   const appEntries = await readdir(appsDir, { withFileTypes: true });
