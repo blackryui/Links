@@ -1,118 +1,115 @@
-# lnwjud ChatGPT Web Plugin Setup
+# ECO ChatGPT Web Plugin Setup
 
-This guide explains how the plugin package in this repository connects ChatGPT Web to the existing lnwjud Windows runtime. The plugin does not move local execution into the cloud and does not duplicate the MCP ToolRegistry.
+ECO is the ChatGPT-facing plugin identity for the existing lnwjud Windows runtime. The runtime, MCP ToolRegistry, internal skill namespaces, local permissions, and Windows execution model remain lnwjud-compatible; only the user-facing ChatGPT plugin identity is branded ECO.
 
 ## Architecture
 
 ```text
 ChatGPT Web / Codex
-  -> lnwjud plugin metadata + routing skills
+  -> ECO plugin metadata + lnwjud routing skills
   -> workspace-associated OpenAI Secure MCP Tunnel
   -> bundled tunnel-client
   -> lnwjud Desktop loopback HTTP MCP
   -> selected Active Project(s) on the user's Windows machine
 ```
 
-The Desktop MCP endpoint remains loopback-only. This package does **not** publish `127.0.0.1` or `localhost` to the Internet and does not require a public inbound port.
+The Desktop MCP endpoint remains loopback-only. ECO does not publish `127.0.0.1` or `localhost` to the Internet and does not require a public inbound port.
 
 ## Prerequisites
 
 - Windows 10/11 x64.
 - lnwjud Desktop v4.13.0 or a newer compatible release.
-- At least one registered project/workspace selected as an Active Project.
-- A reviewed lnwjud permission profile appropriate for the work you intend ChatGPT to perform.
-- An OpenAI Secure MCP Tunnel associated with the ChatGPT workspace that will use lnwjud.
-- A runtime API key with the tunnel runtime permissions required by the current OpenAI tunnel setup.
+- At least one registered workspace selected as an Active Project.
+- A reviewed lnwjud permission profile.
+- An OpenAI Secure MCP Tunnel associated with the ChatGPT workspace that will use ECO.
+- A runtime API key with the permissions required by the current OpenAI tunnel setup.
 
-Do not store the runtime key, tunnel credentials, or other secrets in this repository.
+Never commit the runtime key, tunnel credentials, connector credentials, or other secrets to this repository.
 
-## 1. Start lnwjud and select the local scope
+## 1. Start the local runtime
 
 1. Launch lnwjud Desktop.
-2. Register/select the project that ChatGPT is allowed to inspect.
-3. Set the Active Project(s) and Primary Project as needed.
+2. Register/select the project that ECO is allowed to inspect.
+3. Set Active Project(s) and Primary Project as needed.
 4. Review the Desktop permission profile before connecting ChatGPT.
 
-The plugin adds no authority. A ChatGPT request can do only what is simultaneously allowed by ChatGPT/plugin permissions, workspace capability, Secure MCP Tunnel availability, the lnwjud permission profile, Active Project boundaries, and native exact-action approval.
+ECO adds no new authority. Effective authority is still bounded by ChatGPT permissions, workspace capability, Secure MCP Tunnel availability, the lnwjud permission profile, Active Project boundaries, and native exact-action approval.
 
 ## 2. Configure the OpenAI Secure MCP Tunnel
 
 In lnwjud Desktop, open **Settings -> OpenAI Secure MCP Tunnel**.
 
-1. Create or select the OpenAI tunnel that belongs to the intended Platform organization and ChatGPT workspace.
+1. Create or select the OpenAI tunnel for the intended Platform organization and ChatGPT workspace.
 2. Create the restricted runtime API key required to use that tunnel.
-3. Save the runtime key in lnwjud. The released Windows app stores it using the existing Windows secret-storage path; never commit it to Git.
-4. Enter the real tunnel ID in lnwjud and run **Configure Tunnel**.
-5. Start/reconnect the tunnel and confirm that lnwjud reports the Desktop MCP/tunnel path as healthy.
+3. Save the runtime key in lnwjud; do not paste it into Git or documentation.
+4. Enter the real tunnel ID and run **Configure Tunnel**.
+5. Start/reconnect the tunnel and confirm the Desktop MCP/tunnel path is healthy.
 
-The tunnel should target the Desktop loopback MCP selected by lnwjud. Do not replace this with a public reverse proxy to the local MCP port.
+The tunnel must target the Desktop loopback MCP selected by lnwjud. Do not replace this with a public reverse proxy to the local MCP port.
 
-## 3. Create the ChatGPT connection
+## 3. Create the ChatGPT connection as ECO
 
-In a ChatGPT workspace that supports the required developer/plugin capabilities:
+In the ChatGPT workspace that will use the connection:
 
-1. Enable Developer mode if the workspace requires it for custom connections.
-2. Open the Plugins/Connections area.
+1. Enable Developer mode when required for custom connections.
+2. Open Plugins/Connections.
 3. Create a connection using **Tunnel**.
-4. Select the existing tunnel or enter the real tunnel ID when the UI requests it.
-5. Confirm that ChatGPT can discover the lnwjud MCP tools.
+4. Select the existing tunnel or paste the real tunnel ID when requested.
+5. Use the connection name **ECO**.
+6. Confirm that ChatGPT can discover the lnwjud MCP tools through ECO.
 
-If lnwjud was upgraded or its tool schemas changed, use **Refresh connector** in ChatGPT. If the conversation still has stale tool metadata after the refresh, open a new chat.
+If lnwjud is upgraded or its tool schemas change, use **Refresh connector**. If a conversation still has stale tool metadata, open a new chat after refreshing.
 
-## 4. Load the plugin package
+## 4. Load the ECO plugin package
 
-The repository contains the package entrypoint at `.codex-plugin/plugin.json` and six intent-routing skills under `skills/`.
+The repository package entrypoint is `.codex-plugin/plugin.json`. It exposes the plugin machine name `eco`, display name `ECO`, and six internal `lnwjud-*` routing skills.
 
-Where the current ChatGPT/Codex surface supports loading a plugin package from a repository or local package, load this repository/package after the tunnel connection exists. The package is intentionally declarative: tool calls still route to the connected lnwjud MCP runtime.
+The internal skill names stay `lnwjud-*` deliberately so existing runtime/tool behavior is not forked or duplicated.
 
 ### Stage A: package-ready
 
 The public repository contains:
 
 - `.codex-plugin/plugin.json`
-- the six routing skills
+- six routing skills
 - static validation/tests
 - this setup guide
 
-The public repository intentionally does **not** contain `.app.json` with a guessed connector identifier.
+The public repository intentionally contains no guessed `.app.json` connector identifier.
 
 ### Stage B: workspace-bound app binding
 
-After ChatGPT creates a real app/connector identity for the lnwjud connection, use that verified identifier if the package-loading flow requires an `.app.json` binding.
+After ChatGPT creates a real app/connector identity for the ECO connection, use that verified identifier only if the package-loading flow requires `.app.json`.
 
-Do not commit a placeholder such as `connector_xxxxx`. If the connector identifier is workspace-specific and should not be public, keep the binding private and leave the public repository at Stage A.
+Do not commit a placeholder connector ID. If the identifier is workspace-specific and should remain private, keep the binding private and leave the public repository at Stage A.
 
 ## 5. Verify read-only access first
 
-Use a read-only smoke prompt before allowing mutations:
+Use a low-risk smoke prompt first:
 
 ```text
-Use lnwjud to list registered workspaces, report Git status for the active project, and summarize the top-level project tree. Do not modify anything.
+Use ECO to list registered workspaces, report Git status for the active project, and summarize the top-level project tree. Do not modify anything.
 ```
 
-A successful result proves the main path:
+This verifies the path:
 
 ```text
-ChatGPT -> Secure MCP Tunnel -> lnwjud Desktop MCP -> local workspace tools
+ChatGPT -> ECO -> Secure MCP Tunnel -> lnwjud Desktop MCP -> local workspace tools
 ```
 
 ## 6. Verify one controlled write
 
-After read-only verification succeeds, test a low-risk controlled change in a disposable or version-controlled project. Ask ChatGPT to make one exact text change using lnwjud file-edit tools, run a narrow verification, and show the Git diff.
+After read-only access succeeds, test one exact text change in a disposable or version-controlled project. Ask ECO to make the change with lnwjud file-edit tools, run a narrow verification, and show the Git diff.
 
-Approval behavior can occur at more than one layer. A ChatGPT permission prompt and an lnwjud native exact-action approval are separate controls; denial at either layer is expected to stop the action.
+ChatGPT permission prompts and lnwjud native exact-action approval are separate controls. Denial at either layer must stop the action.
 
 ## Tool count: 221 default / 227 configurable
 
-lnwjud v4.13.0 contains **227 configurable MCP tools**. The normal runtime advertises **221** because the six `codex_*` delegation tools are opt-in.
+lnwjud v4.13.0 contains **227 configurable MCP tools**. The normal runtime advertises **221** because the six `codex_*` delegation tools remain opt-in.
 
-The plugin does not change that default. To use all 227, enable the existing Codex delegation capability in lnwjud and verify local Codex availability first. Do not modify the ToolRegistry merely to make the plugin appear to expose more tools.
-
-The six plugin skills route by intent and can use lnwjud's own tool-discovery capabilities when the exact MCP tool is uncertain. Tool schemas continue to come from the live MCP server.
+ECO does not change that default. The live lnwjud MCP ToolRegistry remains the source of truth; ECO only supplies plugin metadata and workflow routing.
 
 ## Security boundaries
-
-Effective authority is the intersection of:
 
 ```text
 ChatGPT plugin permissions
@@ -123,41 +120,22 @@ AND Active Project mutation boundary
 AND native exact-action approval where required
 ```
 
-The most restrictive layer wins. The plugin skills must not instruct ChatGPT to bypass any of these boundaries.
+The most restrictive layer wins. ECO must not route around any denial by substituting shell, browser, UI, or coordinate automation.
 
 ## Troubleshooting
 
-### Tunnel offline
-
-Check lnwjud Desktop first: the Desktop MCP listener, saved tunnel configuration, runtime key availability, and tunnel process/health must all be valid. Reconnect the existing tunnel rather than creating a replacement identity unless the original configuration is genuinely invalid.
-
-### ChatGPT shows old tools or schemas
-
-Use **Refresh connector**. If cached schema remains in the current conversation, open a new chat after refreshing.
-
-### ChatGPT denies a read/write action
-
-Review ChatGPT/plugin permission settings and workspace capability. Do not weaken lnwjud security controls to compensate for a ChatGPT-layer denial.
-
-### lnwjud returns a permission or Active Project denial
-
-Review the Desktop permission profile and selected Active Project. Change the local scope only when the requested target is intentionally trusted.
-
-### Native approval is denied or cancelled
-
-The operation must remain blocked. Retry only after the user deliberately approves the exact action; do not substitute shell, browser, UI, or coordinate automation to bypass the denial.
-
-### `codex_*` tools are missing
-
-This is normal when Codex delegation is disabled. The runtime remains at 221 advertised tools until the existing opt-in delegation feature is enabled.
+- **Tunnel offline:** check lnwjud Desktop MCP health, saved tunnel configuration, runtime key availability, and tunnel process state.
+- **Old tools/schema in ChatGPT:** use **Refresh connector** and open a new chat if the old schema remains cached.
+- **ChatGPT denies an action:** review ChatGPT/plugin permissions and workspace capability.
+- **lnwjud denies an action:** review the Desktop permission profile and Active Project scope.
+- **Native approval denied/cancelled:** keep the operation blocked.
+- **`codex_*` tools missing:** normal when delegation is disabled; runtime remains at 221 advertised tools.
 
 ## Repository validation
-
-Run the narrow plugin checks from the repository root:
 
 ```text
 corepack pnpm@10.15.0 test:plugin
 corepack pnpm@10.15.0 validate:plugin
 ```
 
-The authoritative release verification also runs these checks before the broader lnwjud release gates.
+The release verification gate also runs the plugin checks before broader lnwjud release checks.
