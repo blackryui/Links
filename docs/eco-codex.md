@@ -22,16 +22,24 @@ The packaged ECO runtime is self-contained for Node and ripgrep: `eco-mcp.cmd` u
 From a terminal with the current Codex CLI, register ECO using the documented stdio form:
 
 ```text
-codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\path\to\project --workspace C:\path\to\project --profile full
+codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\path\to\project --workspace C:\path\to\project
 ```
 
 For multiple intentional roots, repeat `--allowed-root` before the selected primary `--workspace`:
 
 ```text
-codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\Work\ProjectA --allowed-root D:\Work\Shared --workspace C:\Work\ProjectA --profile full
+codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\Work\ProjectA --allowed-root D:\Work\Shared --workspace C:\Work\ProjectA
 ```
 
 The server registration is named `eco`; the command is the same `eco-mcp.cmd` generated for the ChatGPT Secure MCP Tunnel path.
+
+By default this launch uses the stored ECO/lnwjud stdio permission profile; when none is stored, the shared runtime fallback remains `full`. To set the shared stored profile:
+
+```text
+dist\eco-headless\eco-config.cmd set permission-profile balanced
+```
+
+To override the stored profile for one Codex MCP process only, add `--profile safe|balanced|full|custom` to that registration command.
 
 ## Optional: expose `codex_*` delegation tools
 
@@ -44,12 +52,18 @@ When you intentionally want ECO/ChatGPT to delegate work back to local Codex, ad
 For example:
 
 ```text
-codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\path\to\project --workspace C:\path\to\project --profile full --enable-codex-tools
+codex mcp add eco -- C:\path\to\Links\dist\eco-headless\eco-mcp.cmd --strict-roots --allowed-root C:\path\to\project --workspace C:\path\to\project --enable-codex-tools
 ```
 
 This is a process-level ECO override. It does not rewrite the saved lnwjud setting and does not change the upstream default. `--disable-codex-tools` is the explicit inverse; using both flags together is rejected.
 
-For ChatGPT's Secure MCP Tunnel profile, the equivalent setup option is:
+The saved default can also be controlled headlessly:
+
+```text
+dist\eco-headless\eco-config.cmd set codex-tools-enabled true
+```
+
+For ChatGPT's Secure MCP Tunnel profile, the equivalent process override is:
 
 ```text
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-eco-headless.ps1 -TunnelId <tunnel id> -AllowedRoot C:\path\to\project -EnableCodexTools
@@ -74,7 +88,7 @@ Codex stores MCP servers under `mcp_servers` in its configuration. A direct TOML
 ```toml
 [mcp_servers.eco]
 command = "C:\\path\\to\\Links\\dist\\eco-headless\\eco-mcp.cmd"
-args = ["--strict-roots", "--allowed-root", "C:\\path\\to\\project", "--workspace", "C:\\path\\to\\project", "--profile", "full"]
+args = ["--strict-roots", "--allowed-root", "C:\\path\\to\\project", "--workspace", "C:\\path\\to\\project"]
 ```
 
 Prefer `codex mcp add` when available so the installed Codex version owns config serialization.
@@ -83,7 +97,7 @@ Prefer `codex mcp add` when available so the installed Codex version owns config
 
 - ECO reuses the existing lnwjud CLI runtime and `packages/mcp-server` ToolRegistry.
 - Strict roots are the default ECO deployment boundary.
-- The `full` profile does not remove critical-file, destructive, recovery, or path protections.
+- Permission profile selection does not remove critical-file, destructive, recovery, or path protections.
 - `codex_*` delegation remains opt-in even though Codex itself can always be an ECO MCP client when registered.
 - Never add Codex API tokens, ChatGPT tunnel Runtime API keys, or other credentials to the ECO MCP command or repository configuration.
 
