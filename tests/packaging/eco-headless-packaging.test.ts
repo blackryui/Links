@@ -47,4 +47,16 @@ describe('ECO headless distribution', () => {
     expect(launcher).toContain('%*');
     expect(launcher).not.toContain('lnwjud.exe');
   });
+
+  it('builds through the CLI workspace and has no Desktop build-time dependency', async () => {
+    const buildScript = await readFile(path.join(repositoryRoot, 'scripts', 'build-eco-headless.mjs'), 'utf8');
+    const cliPackage = JSON.parse(await readFile(path.join(repositoryRoot, 'apps', 'cli', 'package.json'), 'utf8')) as {
+      devDependencies?: Record<string, string>;
+    };
+
+    expect(buildScript).toContain("'--filter',");
+    expect(buildScript).toContain("'@lnwjud/cli'");
+    expect(buildScript).not.toContain('@lnwjud/desktop');
+    expect(cliPackage.devDependencies?.esbuild).toBe('0.25.12');
+  });
 });
