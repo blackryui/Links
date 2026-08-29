@@ -18,6 +18,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:eco": "vitest run tests/eco-headless-parity.test.ts tests/eco-headless-entrypoint.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --outDir dist"
   },

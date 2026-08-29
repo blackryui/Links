@@ -29,6 +29,31 @@ const requiredInterfaceFields = [
 ];
 const requiredUrlFields = ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL'];
 const iconFields = ['composerIcon', 'logo', 'logoDark'];
+const requiredHeadlessFiles = [
+  'docs/eco-headless.md',
+  'scripts/setup-eco-headless.ps1',
+  'scripts/start-eco-tunnel.ps1',
+  'scripts/stop-eco-tunnel.ps1',
+  'scripts/status-eco-tunnel.ps1',
+  'scripts/setup-eco-codex.ps1',
+  'scripts/lib/eco-headless-common.ps1',
+  'scripts/build-eco-headless.mjs',
+];
+const requiredHeadlessDocConcepts = [
+  'ECO Headless',
+  'Secure MCP Tunnel',
+  'stdio',
+  'eco-mcp',
+  'setup-eco-headless.ps1',
+  'start-eco-tunnel.ps1',
+  'setup-eco-codex.ps1',
+  'strict allowed',
+];
+const forbiddenDesktopPrimaryPhrases = [
+  'Launch lnwjud Desktop',
+  'Settings -> OpenAI Secure MCP Tunnel',
+  'Desktop loopback HTTP MCP',
+];
 
 function resolveRoot(argv) {
   const rootIndex = argv.indexOf('--root');
@@ -132,6 +157,9 @@ async function validatePlugin(root) {
       errors.push(`plugin manifest version ${String(manifest.version)} does not match package.json version ${String(rootPackage.version)}`);
     }
     if (manifest.skills !== './skills/') errors.push('plugin manifest skills must be "./skills/"');
+    if (typeof manifest.description !== 'string' || !manifest.description.includes('Headless')) {
+      errors.push('plugin manifest description must identify ECO Headless');
+    }
 
     const pluginInterface = manifest.interface ?? {};
     for (const field of requiredInterfaceFields) {
@@ -139,6 +167,9 @@ async function validatePlugin(root) {
     }
     if (pluginInterface.displayName !== expectedDisplayName) {
       errors.push(`plugin manifest interface.displayName must be "${expectedDisplayName}"`);
+    }
+    if (typeof pluginInterface.longDescription !== 'string' || !pluginInterface.longDescription.includes('Headless')) {
+      errors.push('plugin manifest interface.longDescription must identify the headless runtime');
     }
 
     const capabilities = pluginInterface.capabilities;
@@ -156,8 +187,9 @@ async function validatePlugin(root) {
     }
 
     const prompts = pluginInterface.defaultPrompt;
-    if (!Array.isArray(prompts) || prompts.length === 0 || prompts.some((prompt) => typeof prompt !== 'string' || !prompt.includes('ECO'))) {
-      errors.push('plugin manifest interface.defaultPrompt must use ECO branding');
+    if (!Array.isArray(prompts) || prompts.length === 0 || prompts.length > 3
+      || prompts.some((prompt) => typeof prompt !== 'string' || !prompt.includes('ECO') || prompt.length > 128)) {
+      errors.push('plugin manifest interface.defaultPrompt must contain 1-3 ECO prompts of at most 128 characters');
     }
 
     for (const field of iconFields) {
@@ -176,6 +208,29 @@ async function validatePlugin(root) {
     const content = await readFile(skillPath, 'utf8');
     const declaredName = frontmatterName(content);
     if (declaredName !== skill) errors.push(`skill frontmatter name mismatch for ${skill}: found ${String(declaredName)}`);
+    for (const forbidden of ['lnwjud Desktop', 'Desktop permission', 'native exact-action approval']) {
+      if (content.includes(forbidden)) errors.push(`skill ${skill} still depends on Desktop wording: ${forbidden}`);
+    }
+  }
+
+  for (const relativePath of requiredHeadlessFiles) {
+    const filePath = path.join(root, relativePath);
+    scannedFiles.push(filePath);
+    if (!(await exists(filePath))) errors.push(`required ECO Headless file is missing: ${relativePath}`);
+  }
+
+  const pluginDocPath = path.join(root, 'docs', 'chatgpt-plugin.md');
+  scannedFiles.push(pluginDocPath);
+  if (await exists(pluginDocPath)) {
+    const doc = await readFile(pluginDocPath, 'utf8');
+    for (const concept of requiredHeadlessDocConcepts) {
+      if (!doc.toLowerCase().includes(concept.toLowerCase())) errors.push(`ChatGPT plugin guide is missing headless concept: ${concept}`);
+    }
+    for (const forbidden of forbiddenDesktopPrimaryPhrases) {
+      if (doc.includes(forbidden)) errors.push(`ChatGPT plugin guide still contains Desktop-primary instruction: ${forbidden}`);
+    }
+  } else {
+    errors.push('ChatGPT plugin guide is missing: docs/chatgpt-plugin.md');
   }
 
   const appPath = path.join(root, '.app.json');
@@ -191,7 +246,6 @@ async function validatePlugin(root) {
     if (/127\.0\.0\.1|localhost/i.test(mcpContent)) errors.push('.mcp.json must not publish a localhost MCP endpoint for ChatGPT Web');
   }
 
-  scannedFiles.push(path.join(root, 'docs', 'chatgpt-plugin.md'));
   await scanSecrets(scannedFiles, errors);
   return errors;
 }
