@@ -192,4 +192,20 @@ describe('ChatGPT plugin package', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('keeps the plugin manifest in the repository version synchronizer', async () => {
+    const versionScript = await readFile(path.join(repositoryRoot, 'scripts', 'set-version.mjs'), 'utf8');
+    expect(versionScript).toContain("'.codex-plugin', 'plugin.json'");
+    expect(versionScript).toContain('updatePackageJson(pluginManifestPath, version)');
+  });
+
+  it('documents ChatGPT Web tunnel setup and the app-binding lifecycle', async () => {
+    const docPath = path.join(repositoryRoot, 'docs', 'chatgpt-plugin.md');
+    expect(await fileExists(docPath)).toBe(true);
+    const doc = await readFile(docPath, 'utf8');
+
+    for (const concept of ['Secure MCP Tunnel', '221', '227', 'codex_*', '.app.json', 'Refresh connector']) {
+      expect(doc).toContain(concept);
+    }
+  });
 });
