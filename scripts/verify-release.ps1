@@ -29,7 +29,9 @@ function Assert-RepositoryChecks {
 
     $trackedFiles = @(git ls-files)
     $requiredTrackedFiles = @(
-        'docs/architecture/MUTATION_SAFETY_MATRIX.md'
+        'docs/architecture/MUTATION_SAFETY_MATRIX.md',
+        'docs/eco-headless-parity.json',
+        'docs/eco-headless.md'
     )
     $missingRequiredTrackedFiles = @($requiredTrackedFiles | Where-Object { $_ -notin $trackedFiles })
     if ($missingRequiredTrackedFiles.Count -gt 0) {
@@ -64,6 +66,19 @@ try {
     Invoke-ReleaseStage 'typecheck' @('typecheck')
     Invoke-ReleaseStage 'test:plugin' @('test:plugin')
     Invoke-ReleaseStage 'validate:plugin' @('validate:plugin')
+
+    # ECO Headless is additive to the upstream-compatible release gate. These
+    # stages verify parity, stdio packaging, tunnel lifecycle contracts, and
+    # real MCP project/Codex integration before the broader lnwjud suite.
+    Invoke-ReleaseStage 'test:eco:parity' @('test:eco:parity')
+    Invoke-ReleaseStage 'validate:eco:parity' @('validate:eco:parity')
+    Invoke-ReleaseStage 'build:eco' @('build:eco')
+    Invoke-ReleaseStage 'test:eco:packaging' @('test:eco:packaging')
+    Invoke-ReleaseStage 'test:eco:tunnel' @('test:eco:tunnel')
+    Invoke-ReleaseStage 'test:eco:integration' @('test:eco:integration')
+    Invoke-ReleaseStage 'test:eco:release-gate' @('test:eco:release-gate')
+    Invoke-ReleaseStage 'validate:eco:release' @('validate:eco:release')
+
     Invoke-ReleaseStage 'test:release' @('test:release')
     Invoke-ReleaseStage 'test:acceptance' @('test:acceptance')
     Invoke-ReleaseStage 'test:integration' @('test:integration')
@@ -73,6 +88,15 @@ try {
     Invoke-ReleaseStage 'test:packaging' @('test:packaging')
     Invoke-ReleaseStage 'test:release-gate' @('test:release-gate')
     Invoke-ReleaseStage 'package:windows' @('package:windows')
+
+    $ecoDistribution = Join-Path $repositoryRoot 'dist\eco-headless'
+    foreach ($ecoArtifactName in @('eco-mcp.cjs', 'eco-mcp.cmd', 'PACKAGE.json')) {
+        $ecoArtifactPath = Join-Path $ecoDistribution $ecoArtifactName
+        if (-not (Test-Path -LiteralPath $ecoArtifactPath -PathType Leaf)) {
+            throw "ECO packaged-runtime smoke could not find '$ecoArtifactName' in: $ecoDistribution"
+        }
+        Write-Host "ECO packaged-runtime smoke artifact: $ecoArtifactPath"
+    }
 
     $installerDirectory = Join-Path $repositoryRoot 'apps\desktop\dist\installers'
     if (-not (Test-Path -LiteralPath $installerDirectory -PathType Container)) {
