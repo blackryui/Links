@@ -13,8 +13,6 @@ describe('ECO Secure MCP Tunnel stdio profile', () => {
     expect(setup).toContain("'--profile'");
     expect(setup).toContain("'eco'");
     expect(setup).toContain("'--mcp-command'");
-    expect(setup).toContain('--strict-roots');
-    expect(setup).toContain('--allowed-root');
     expect(setup).toContain('doctor');
     expect(setup).not.toContain('--mcp-server-url');
     expect(setup).not.toContain('server_urls');
@@ -22,6 +20,11 @@ describe('ECO Secure MCP Tunnel stdio profile', () => {
     expect(setup).not.toContain('electron');
     expect(setup).not.toContain('CONTROL_PLANE_API_KEY=');
 
+    expect(common).toContain("'--strict-roots'");
+    expect(common).toContain("'--allowed-root'");
+    expect(common).toContain("'--workspace'");
+    expect(common).toContain("'--enable-codex-tools'");
+    expect(common).not.toContain("$parts += '--profile'");
     expect(common).toContain('eco.runtime.secret');
     expect(common).toContain('eco-tunnel.log');
     expect(common).toContain('eco.tunnel.owner.json');
