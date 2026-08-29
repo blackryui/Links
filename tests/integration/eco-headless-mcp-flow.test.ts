@@ -57,7 +57,7 @@ describe('ECO headless real MCP project flow', () => {
       expect(workspaceId).toEqual(expect.any(String));
 
       const info = await callTool(client, 'workspace_info', { workspaceId });
-      expect(JSON.stringify(info)).toContain(projectRoot);
+      expect(containsWorkspaceRoot(info, projectRoot)).toBe(true);
 
       const read = await callTool(client, 'read_file', { workspaceId, path: 'src/app.ts' });
       expect(JSON.stringify(read)).toContain("value = 'before'");
@@ -133,6 +133,23 @@ function findWorkspaceId(value: unknown, expectedRoot: string): string {
   const found = visit(value);
   if (!found) throw new Error(`Could not find strict-root workspace for ${expectedRoot}`);
   return found;
+}
+
+function containsWorkspaceRoot(value: unknown, expectedRoot: string): boolean {
+  const target = path.normalize(expectedRoot).toLowerCase();
+  const seen = new Set<unknown>();
+  const visit = (current: unknown): boolean => {
+    if (current === null || typeof current !== 'object' || seen.has(current)) return false;
+    seen.add(current);
+    if (Array.isArray(current)) return current.some(visit);
+    const record = current as Record<string, unknown>;
+    for (const key of ['realRootPath', 'rootPath']) {
+      const candidate = record[key];
+      if (typeof candidate === 'string' && path.normalize(candidate).toLowerCase() === target) return true;
+    }
+    return Object.values(record).some(visit);
+  };
+  return visit(value);
 }
 
 function hasStructuredError(value: unknown): boolean {
