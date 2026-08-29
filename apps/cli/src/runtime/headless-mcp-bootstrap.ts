@@ -93,6 +93,7 @@ export async function runHeadlessMcp(
       ?? settingsRepository.get(STDIO_PERMISSION_PROFILE_SETTING_KEY),
     'full',
   );
+  const trustedHostApproval = hasFlag(argv, '--trusted-host-approval');
   const strictRootsEnabled = hasFlag(argv, '--strict-roots')
     || (env.LNWJUD_STRICT_ROOTS !== undefined
       ? parseBooleanSetting(env.LNWJUD_STRICT_ROOTS, false)
@@ -188,7 +189,9 @@ export async function runHeadlessMcp(
   await runtime.activityReady;
   process.stderr.write(
     `lnwjud MCP stdio ready primary=${workspace.id} root=${workspace.realRootPath} profile=${profileName}`
-      + `${unrestricted ? ' unrestricted=1' : ''}${strictAllowedRoots === undefined ? '' : ` strict_roots=${strictAllowedRoots.length}`}\n`,
+      + `${unrestricted ? ' unrestricted=1' : ''}`
+      + `${strictAllowedRoots === undefined ? '' : ` strict_roots=${strictAllowedRoots.length}`}`
+      + `${trustedHostApproval ? ' trusted_host_approval=1' : ''}\n`,
   );
 
   let closed = false;
@@ -223,6 +226,7 @@ export async function runHeadlessMcp(
     process.exit(0);
   }
 
+  const hostMutationApprovalProvider = trustedHostApproval ? async (): Promise<boolean> => true : undefined;
   transport = startMcpStdio({
     services: runtime.services,
     actor: runtime.actor,
@@ -233,6 +237,7 @@ export async function runHeadlessMcp(
     destructivePolicyProvider: runtime.destructivePolicyProvider,
     activeWorkspaceScopeProvider: runtime.activeWorkspaceScopeProvider,
     activeWorkspaceScopesProvider: runtime.activeWorkspaceScopesProvider,
+    ...(hostMutationApprovalProvider === undefined ? {} : { hostMutationApprovalProvider }),
     onError: (error): void => {
       if (/EPIPE|ECONNRESET|broken pipe/i.test(error.message)) {
         process.stderr.write(`lnwjud MCP stdio: peer closed (${error.message})\n`);
