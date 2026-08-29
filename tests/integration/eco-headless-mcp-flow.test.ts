@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe('ECO headless MCP project flow', () => {
-  windowsIt('uses the packaged stdio runtime for strict-root project read/write/Git/state behavior', async () => {
+  windowsIt('uses the packaged stdio runtime for strict-root project read/write/Git/state/approval behavior', async () => {
     const ecoNode = path.join(distRoot, 'eco-node.exe');
     const ecoBundle = path.join(distRoot, 'eco-mcp.cjs');
     await access(ecoNode);
@@ -42,6 +42,7 @@ describe('ECO headless MCP project flow', () => {
       args: [
         ecoBundle,
         '--strict-roots',
+        '--trusted-host-approval',
         '--allowed-root', projectRoot,
         '--allowed-root', secondaryRoot,
         '--workspace', projectRoot,
@@ -61,7 +62,7 @@ describe('ECO headless MCP project flow', () => {
       await client.connect(transport);
       const catalog = await client.listTools();
       const names = catalog.tools.map((tool: { name: string }) => tool.name);
-      for (const required of ['workspace_list', 'workspace_info', 'read_file', 'edit_file', 'write_file', 'git_status', 'list_checkpoints', 'run_goal', 'list_goals']) {
+      for (const required of ['workspace_list', 'workspace_info', 'read_file', 'edit_file', 'write_file', 'delete_file', 'git_status', 'list_checkpoints', 'run_goal', 'list_goals']) {
         expect(names).toContain(required);
       }
       expect(names.some((name: string) => name.startsWith('codex_'))).toBe(false);
@@ -111,6 +112,28 @@ describe('ECO headless MCP project flow', () => {
       });
       expect(String(structured(secondaryRead).content)).toContain('secondary = true');
 
+      const createDeleteTarget = await callTool(client, 'write_file', {
+        workspaceId,
+        path: 'src/delete-me.ts',
+        content: 'export const disposable = true;\n',
+      });
+      expect(createDeleteTarget.isError).not.toBe(true);
+
+      const deleteWithoutConfirmation = await callTool(client, 'delete_file', {
+        workspaceId,
+        path: 'src/delete-me.ts',
+      });
+      expect(deleteWithoutConfirmation.isError).toBe(true);
+      expect(String(structured(deleteWithoutConfirmation).error?.code ?? '')).toBe('PERMISSION_REQUIRED');
+
+      const deleteWithTrustedHostConfirmation = await callTool(client, 'delete_file', {
+        workspaceId,
+        path: 'src/delete-me.ts',
+        userConfirmed: true,
+      });
+      expect(deleteWithTrustedHostConfirmation.isError).not.toBe(true);
+      expect(JSON.stringify(structured(deleteWithTrustedHostConfirmation))).toContain('recoveryId');
+
       const after = await callTool(client, 'read_file', { workspaceId, path: 'src/app.ts' });
       expect(String(structured(after).content)).toContain("value = 'after'");
 
@@ -137,6 +160,7 @@ describe('ECO headless MCP project flow', () => {
       const goals = await callTool(client, 'list_goals', { workspaceId, limit: 10 });
       expect(JSON.stringify(structured(goals))).toContain('eco-headless-integration');
       expect(diagnostics).toContain('lnwjud MCP stdio ready');
+      expect(diagnostics).toContain('trusted_host_approval=1');
     } finally {
       await client.close();
     }
