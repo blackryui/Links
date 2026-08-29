@@ -5,11 +5,14 @@ ECO Headless runs the current lnwjud v4.13.0 agent runtime as a local stdio MCP 
 ## Runtime path
 
 ```text
-ChatGPT Web -> OpenAI Secure MCP Tunnel -> tunnel-client -> eco-mcp stdio
-Codex local -----------------------------------------------> eco-mcp stdio
+ChatGPT Web -> OpenAI Secure MCP Tunnel -> tunnel-client -> eco-node.exe + eco-mcp.cjs (stdio)
+Codex local -----------------------------------------------> eco-mcp.cmd convenience launcher
+                                                            -> the same eco-node.exe + eco-mcp.cjs
                                                             -> shared lnwjud CLI runtime
                                                             -> shared MCP ToolRegistry
 ```
+
+The ChatGPT Tunnel path uses the private executable directly because OpenAI tunnel-client launches stdio `CommandArgs[0]` as an executable. The `.cmd` launcher remains a local/Codex convenience wrapper only.
 
 ## Build
 
@@ -32,7 +35,7 @@ dist\eco-headless\windows-capability-bridge.ps1
 dist\eco-headless\PACKAGE.json
 ```
 
-The packaged runtime carries its own private Node 24 runtime and verified ripgrep, matching the operational requirements of the upstream packaged stdio runtime. A system Node or ripgrep installation is not required to run the packaged ECO MCP. The optional Windows OCR helper is included when its upstream build prerequisite is available.
+The packaged runtime carries its own private Node 24 runtime and verified ripgrep, matching the operational requirements of the upstream packaged stdio runtime. A system Node or ripgrep installation is not required to run the packaged ECO MCP. Direct private-Node launches also detect and prepend the adjacent bundled ripgrep directory before creating the shared runtime. The optional Windows OCR helper is included when its upstream build prerequisite is available.
 
 No `lnwjud.exe` or Electron process is required to run ECO.
 
@@ -83,7 +86,7 @@ dist\eco-headless\eco-config.cmd set codex-tools-enabled true
 dist\eco-headless\eco-config.cmd set lsp-commands "{\"typescript\":\"typescript-language-server --stdio\"}"
 ```
 
-`show` / `get` report `null` when no stored override exists; in that case the shared lnwjud runtime uses its normal upstream default. Extension MCP environment values are redacted in displayed config. Do not pass API tokens or passwords as normal config command arguments; use provider/tool-specific secure environment mechanisms instead.
+`show` / `get` report `null` when no stored override exists; in that case the shared lnwjud runtime uses its normal upstream default. Extension MCP environment values are redacted in displayed config. Structured permission/destructive/extension settings are strictly validated at this operator boundary before persistence. Do not pass API tokens or passwords as normal config command arguments; use provider/tool-specific secure environment mechanisms instead.
 
 Desktop-only settings such as tray behavior, start-minimized, or close behavior are intentionally not part of ECO because their operational purpose disappears when Desktop/Electron is removed.
 
@@ -112,11 +115,12 @@ This does not change lnwjud's saved default; it adds `--enable-codex-tools` to t
 The setup script:
 
 - requires existing explicit allowed roots;
-- configures the tunnel profile `eco` for stdio command forwarding;
-- launches `eco-mcp.cmd` with `--strict-roots` and repeated `--allowed-root` arguments;
+- resolves the packaged `eco-node.exe`, `eco-mcp.cjs`, and bundled ripgrep;
+- configures the tunnel profile `eco` for direct stdio executable forwarding;
+- stores a command beginning with `eco-node.exe`, followed by `eco-mcp.cjs`, `--strict-roots`, repeated `--allowed-root`, and the selected `--workspace`;
 - optionally adds the explicit Codex delegation flag;
 - stores the Runtime API key locally using Windows user-protected secure-string storage;
-- runs `tunnel-client doctor` before reporting the setup usable;
+- runs `tunnel-client doctor` against the exact generated production command before reporting setup usable;
 - never requires `lnwjud.exe`.
 
 Do not put the Runtime API key in Git, chat messages, command-line arguments, or documentation.
@@ -164,7 +168,7 @@ After that succeeds, verify one exact controlled edit in a version-controlled pr
 
 ## Codex
 
-See `docs/eco-codex.md`. Codex uses the same `eco-mcp.cmd` stdio entrypoint; ECO does not have a separate Codex server. Codex acting as an MCP client is distinct from enabling the optional `codex_*` delegation tools.
+See `docs/eco-codex.md`. Codex may use `eco-mcp.cmd` as a convenience launcher, but it reaches the same packaged private Node + `eco-mcp.cjs` runtime used by the ChatGPT Tunnel. ECO does not have a separate Codex server. Codex acting as an MCP client is distinct from enabling the optional `codex_*` delegation tools.
 
 ## Security defaults
 
@@ -174,7 +178,7 @@ See `docs/eco-codex.md`. Codex uses the same `eco-mcp.cmd` stdio entrypoint; ECO
 - critical-file, path, Git, recovery and checkpoint protections stay in the shared runtime;
 - optional capabilities remain subject to their Windows/external-binary prerequisites;
 - `codex_*` delegation remains opt-in; explicit ECO enable/disable flags override only the current MCP process catalog;
-- headless config rejects unknown keys and invalid/out-of-range values instead of silently creating arbitrary settings.
+- headless config rejects unknown keys and invalid/out-of-range/semantically invalid values instead of silently creating arbitrary settings.
 
 ## State
 
