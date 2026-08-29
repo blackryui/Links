@@ -62,7 +62,7 @@ describe('ECO headless runtime configuration', () => {
     });
   });
 
-  it('rejects unknown, malformed, and out-of-range settings instead of silently falling back', async () => {
+  it('rejects unknown, malformed, out-of-range, and semantically invalid settings instead of silently falling back', async () => {
     const dataPath = await tempDataPath();
     expect(() => setEcoHeadlessConfigValue(dataPath, 'not-a-setting', 'x')).toThrow(/Unknown ECO headless config key/);
     expect(() => setEcoHeadlessConfigValue(dataPath, 'permission-profile', 'unsafe')).toThrow(/permission-profile/);
@@ -70,6 +70,16 @@ describe('ECO headless runtime configuration', () => {
     expect(() => setEcoHeadlessConfigValue(dataPath, 'mcp-poll-wait-seconds', '2')).toThrow(/5.*60/);
     expect(() => setEcoHeadlessConfigValue(dataPath, 'lsp-commands', '[]')).toThrow(/JSON object/);
     expect(() => setEcoHeadlessConfigValue(dataPath, 'extensions', '{broken')).toThrow(/valid JSON/);
+
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'custom-permission', '{"read":"ROOT"}')).toThrow(/read.*ALLOW.*ASK.*DENY/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'custom-permission', '{"allowedExecutables":["git",7]}')).toThrow(/allowedExecutables/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'destructive-policy', '{"protectCriticalFiles":false}')).toThrow(/protectCriticalFiles.*true/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'destructive-policy', '{"approvals":{"delete_file":"yes"}}')).toThrow(/delete_file.*boolean/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'destructive-policy', '{"approvals":{"typo_family":true}}')).toThrow(/unknown destructive approval/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'extensions', '{"mode":"weird"}')).toThrow(/mode.*enable_all.*allowlist/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'extensions', '{"extraSkillRoots":["ok",7]}')).toThrow(/extraSkillRoots/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'extensions', '{"extraMcpServers":{"private":{"env":{"TOKEN":7},"command":"tool.exe"}}}')).toThrow(/env.*string/);
+    expect(() => setEcoHeadlessConfigValue(dataPath, 'extensions', '{"unexpected":true}')).toThrow(/unknown extensions setting/);
   });
 
   it('resets one allowlisted setting without disturbing the rest', async () => {
