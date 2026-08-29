@@ -59,6 +59,9 @@ jobs:
             apps/desktop/dist/installers/portable.yml
             apps/desktop/dist/installers/SHA256SUMS.txt
             apps/desktop/dist/installers/PROVENANCE.json
+            dist/eco-headless/eco-mcp.cjs
+            dist/eco-headless/eco-mcp.cmd
+            dist/eco-headless/PACKAGE.json
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
