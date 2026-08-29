@@ -56,6 +56,7 @@ $maxRapidRestarts = 5
 $rapidRestartCount = 0
 $rapidRestartWindowStarted = Get-Date
 $keyPointer = $null
+$cleanupError = $null
 
 function Clear-EcoRuntimeKey {
   if ($null -ne $script:keyPointer) {
@@ -86,8 +87,27 @@ try {
     throw 'ECO tunnel ownership mutex is held but owner state is not verifiable.'
   }
 
+  $ownerFileExists = Test-Path -LiteralPath $ownerPath -PathType Leaf
+  $staleOwner = Get-EcoOwnerRecord
+  if ($ownerFileExists -and $null -eq $staleOwner) {
+    throw "ECO tunnel owner metadata is invalid: $ownerPath"
+  }
+  if ($null -ne $staleOwner) {
+    if (Test-EcoOwnerLive $staleOwner) {
+      throw "ECO tunnel owner PID $($staleOwner.pid) is live while the ownership mutex is available; refusing split-brain startup."
+    }
+    $childState = Get-EcoOwnedChildState $staleOwner
+    if ($childState -eq 'owned') {
+      Write-Host "ECO tunnel: recovering verified orphan child PID $($staleOwner.childPid)."
+      Stop-EcoOwnedChild $staleOwner | Out-Null
+    } elseif ($childState -notin @('none', 'gone')) {
+      throw "ECO tunnel stale child state is $childState; refusing startup until ownership can be verified."
+    }
+    Remove-EcoOwnerRecordIfCurrent $staleOwner
+  }
+
   Remove-Item -LiteralPath $stopPath -Force -ErrorAction SilentlyContinue
-  $owner = Write-EcoOwnerRecord $PID
+  $owner = Write-EcoOwnerRecord $PID $tunnelClient $profileDir
 
   :runLoop while ($true) {
     if (Test-Path -LiteralPath $stopPath) { break }
@@ -105,6 +125,12 @@ try {
         '--mcp.connection-max-ttl', '168h0m0s'
       )
       $child = Start-Process -FilePath $tunnelClient -ArgumentList $runArgs -PassThru -WindowStyle Hidden
+      try {
+        $owner = Set-EcoOwnerChild $owner $child.Id
+      } catch {
+        Stop-Process -Id $child.Id -ErrorAction SilentlyContinue
+        throw
+      }
     }
     finally {
       Clear-EcoRuntimeKey
@@ -114,7 +140,7 @@ try {
     while (-not $child.HasExited) {
       if (Test-Path -LiteralPath $stopPath) {
         $stopRequested = $true
-        Stop-Process -Id $child.Id -ErrorAction SilentlyContinue
+        Stop-EcoOwnedChild $owner | Out-Null
         try { $child.WaitForExit(5000) | Out-Null } catch { }
         break
       }
@@ -122,9 +148,16 @@ try {
       $child.Refresh()
     }
 
+    $child.Refresh()
+    if ($child.HasExited) {
+      $exitCode = $child.ExitCode
+      $owner = Clear-EcoOwnerChild $owner
+    } else {
+      throw "ECO tunnel-client child PID $($child.Id) remained live after stop handling."
+    }
+
     if ($stopRequested -or (Test-Path -LiteralPath $stopPath)) { break runLoop }
 
-    $exitCode = $child.ExitCode
     $elapsed = ((Get-Date) - $rapidRestartWindowStarted).TotalSeconds
     if ($elapsed -gt 30) {
       $rapidRestartCount = 0
@@ -141,11 +174,18 @@ try {
 }
 finally {
   Clear-EcoRuntimeKey
-  if ($null -ne $child -and -not $child.HasExited) {
-    Stop-Process -Id $child.Id -ErrorAction SilentlyContinue
+  if ($null -ne $owner) {
+    try {
+      Stop-EcoOwnedChild $owner | Out-Null
+    } catch {
+      $cleanupError = $_
+    }
   }
-  Remove-Item -LiteralPath $stopPath -Force -ErrorAction SilentlyContinue
-  if ($null -ne $owner) { Remove-EcoOwnerRecordIfCurrent $owner }
+  if ($null -eq $cleanupError) {
+    Remove-Item -LiteralPath $stopPath -Force -ErrorAction SilentlyContinue
+    if ($null -ne $owner) { Remove-EcoOwnerRecordIfCurrent $owner }
+  }
   if ($mutexHeld) { $mutex.ReleaseMutex() }
   $mutex.Dispose()
+  if ($null -ne $cleanupError) { throw $cleanupError }
 }
