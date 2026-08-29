@@ -64,15 +64,49 @@ try {
     Invoke-ReleaseStage 'typecheck' @('typecheck')
     Invoke-ReleaseStage 'test:plugin' @('test:plugin')
     Invoke-ReleaseStage 'validate:plugin' @('validate:plugin')
+
+    # ECO Headless feature-parity gates. These are explicit so CI logs identify
+    # the exact failed contract rather than hiding failures under one aggregate.
+    Invoke-ReleaseStage 'test:eco:parity' @('test:eco:parity')
+    Invoke-ReleaseStage 'validate:eco:parity' @('validate:eco:parity')
+    Invoke-ReleaseStage 'test:eco:cli' @('--filter', '@lnwjud/cli', 'test:eco')
+    Invoke-ReleaseStage 'test:eco:mcp-server' @('--filter', '@lnwjud/mcp-server', 'test')
+    Invoke-ReleaseStage 'build:eco' @('build:eco')
+    Invoke-ReleaseStage 'test:eco:packaging' @('test:eco:packaging')
+    Invoke-ReleaseStage 'test:eco:tunnel' @('test:eco:tunnel')
+    Invoke-ReleaseStage 'test:eco:integration' @('test:eco:integration')
+
+    # Preserve the complete upstream-compatible release suite as well.
     Invoke-ReleaseStage 'test:release' @('test:release')
     Invoke-ReleaseStage 'test:acceptance' @('test:acceptance')
     Invoke-ReleaseStage 'test:integration' @('test:integration')
     Invoke-ReleaseStage 'test:e2e' @('test:e2e')
     Invoke-ReleaseStage 'build' @('build')
     Invoke-ReleaseStage 'docs:tools:check' @('docs:tools:check')
+
+    # Release-mode parity runs only after the live tool catalog has been checked.
+    Invoke-ReleaseStage 'validate:eco:release' @('validate:eco:release')
+    Invoke-ReleaseStage 'test:eco:release-gate' @('test:eco:release-gate')
+
     Invoke-ReleaseStage 'test:packaging' @('test:packaging')
     Invoke-ReleaseStage 'test:release-gate' @('test:release-gate')
     Invoke-ReleaseStage 'package:windows' @('package:windows')
+
+    $ecoDirectory = Join-Path $repositoryRoot 'dist\eco-headless'
+    $requiredEcoArtifacts = @(
+        'eco-mcp.cjs',
+        'eco-mcp.cmd',
+        'eco-node.exe',
+        'windows-capability-bridge.ps1',
+        'PACKAGE.json'
+    )
+    foreach ($artifactName in $requiredEcoArtifacts) {
+        $artifactPath = Join-Path $ecoDirectory $artifactName
+        if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
+            throw "ECO Headless smoke could not find required artifact '$artifactName' in: $ecoDirectory"
+        }
+        Write-Host "ECO Headless smoke artifact: $artifactPath"
+    }
 
     $installerDirectory = Join-Path $repositoryRoot 'apps\desktop\dist\installers'
     if (-not (Test-Path -LiteralPath $installerDirectory -PathType Container)) {
