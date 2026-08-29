@@ -15,13 +15,19 @@ async function sha256(filePath: string): Promise<string> {
 }
 
 describe('ECO headless distribution', () => {
-  it('packages one stdio MCP runtime without Desktop/Electron runtime dependencies', async () => {
+  it('packages one self-contained Windows stdio MCP runtime without Desktop/Electron runtime dependencies', async () => {
+    if (process.platform !== 'win32') return;
+
     const cjsPath = path.join(distRoot, 'eco-mcp.cjs');
     const cmdPath = path.join(distRoot, 'eco-mcp.cmd');
     const metadataPath = path.join(distRoot, 'PACKAGE.json');
+    const nodePath = path.join(distRoot, 'eco-node.exe');
+    const rgPath = path.join(distRoot, 'runtime-tools', 'ripgrep', 'rg.exe');
     const bridgePath = path.join(distRoot, 'windows-capability-bridge.ps1');
 
-    for (const required of [cjsPath, cmdPath, metadataPath, bridgePath]) expect(await exists(required), required).toBe(true);
+    for (const required of [cjsPath, cmdPath, metadataPath, nodePath, rgPath, bridgePath]) {
+      expect(await exists(required), required).toBe(true);
+    }
 
     const bundle = await readFile(cjsPath, 'utf8');
     const cmd = await readFile(cmdPath, 'utf8');
@@ -35,10 +41,19 @@ describe('ECO headless distribution', () => {
     expect(bundle).not.toContain("require('electron')");
     expect(bundle).not.toContain('apps/desktop');
     expect(cmd).toContain('eco-mcp.cjs');
+    expect(cmd).toContain('eco-node.exe');
+    expect(cmd).toContain('runtime-tools\\ripgrep');
+    expect(cmd).toContain('set "PATH=%RIPGREP_DIR%;%PATH%"');
     expect(cmd).toContain('%*');
+
     expect(metadata.name).toBe('ECO Headless MCP');
     expect(metadata.version).toBe('4.13.0');
     expect(metadata.entrypoint).toBe('eco-mcp.cjs');
+    expect(metadata.privateNode).toBe('eco-node.exe');
+    expect(metadata.privateNodeMajor).toBe(24);
+    expect(metadata.privateNodeSha256).toBe(await sha256(nodePath));
+    expect(metadata.ripgrep).toBe('runtime-tools/ripgrep/rg.exe');
+    expect(metadata.ripgrepSha256).toBe(await sha256(rgPath));
     expect(metadata.parityInventory).toBe('docs/eco-headless-parity.json');
     expect(metadata.windowsCapabilityBridge).toBe('windows-capability-bridge.ps1');
     expect(metadata.windowsCapabilityBridgeSha256).toBe(expectedBridgeSha);
