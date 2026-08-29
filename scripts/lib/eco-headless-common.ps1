@@ -47,12 +47,26 @@ function Resolve-EcoBundleRoot {
 
 function Resolve-EcoMcpLauncherPath {
   param([string]$BundleRoot)
+  return (Resolve-EcoMcpRuntimePaths -BundleRoot $BundleRoot).launcherPath
+}
+
+function Resolve-EcoMcpRuntimePaths {
+  param([string]$BundleRoot)
   $resolvedRoot = Resolve-EcoBundleRoot -BundleRoot $BundleRoot
   $launcher = Join-Path $resolvedRoot 'eco-mcp.cmd'
-  if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
-    throw "ECO MCP launcher not found: $launcher. Run corepack pnpm@10.15.0 build:eco first."
+  $nodePath = Join-Path $resolvedRoot 'eco-node.exe'
+  $bundlePath = Join-Path $resolvedRoot 'eco-mcp.cjs'
+  foreach ($required in @($launcher, $nodePath, $bundlePath)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+      throw "ECO Headless runtime artifact not found: $required. Run corepack pnpm@10.15.0 build:eco first."
+    }
   }
-  return (Resolve-Path -LiteralPath $launcher -ErrorAction Stop).Path
+  return [pscustomobject]@{
+    bundleRoot = (Resolve-Path -LiteralPath $resolvedRoot -ErrorAction Stop).Path
+    launcherPath = (Resolve-Path -LiteralPath $launcher -ErrorAction Stop).Path
+    nodePath = (Resolve-Path -LiteralPath $nodePath -ErrorAction Stop).Path
+    bundlePath = (Resolve-Path -LiteralPath $bundlePath -ErrorAction Stop).Path
+  }
 }
 
 function Resolve-EcoTunnelClientPath {
@@ -101,13 +115,15 @@ function ConvertTo-EcoCommandArgument {
 
 function New-EcoMcpCommand {
   param(
-    [Parameter(Mandatory = $true)][string]$LauncherPath,
+    [Parameter(Mandatory = $true)][string]$NodePath,
+    [Parameter(Mandatory = $true)][string]$BundlePath,
     [Parameter(Mandatory = $true)][string[]]$AllowedRoots,
     [string]$PermissionProfile = 'full'
   )
   if ($AllowedRoots.Count -eq 0) { throw 'ECO MCP command requires at least one allowed root.' }
   $parts = @(
-    (ConvertTo-EcoCommandArgument -Value $LauncherPath),
+    (ConvertTo-EcoCommandArgument -Value $NodePath),
+    (ConvertTo-EcoCommandArgument -Value $BundlePath),
     '--strict-roots',
     '--trusted-host-approval',
     '--profile',
