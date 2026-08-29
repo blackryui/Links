@@ -30,10 +30,13 @@
       "Read",
       "Write"
     ],
+    "websiteURL": "https://github.com/blackryui/Links",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
     "defaultPrompt": [
-      "Use lnwjud to list registered workspaces, report Git status for the active project, and summarize the top-level project tree. Do not modify anything.",
-      "Use lnwjud to inspect this project, make the requested code change, run the narrow relevant tests, and show the resulting Git diff.",
-      "Use lnwjud to observe the current Windows target first, then perform only the requested UI action within the active permission boundaries."
+      "Use lnwjud to list workspaces, show Git status for the active project, and summarize the top-level tree without changes.",
+      "Use lnwjud to inspect this project, make the requested code change, run the narrow relevant tests, and show the Git diff.",
+      "Use lnwjud to observe the Windows target first, then perform only the requested UI action within current permissions."
     ],
     "brandColor": "#0078D4",
     "composerIcon": "./assets/logo/logo-256x256.png",
