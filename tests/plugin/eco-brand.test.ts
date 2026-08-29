@@ -38,10 +38,11 @@ describe('ECO plugin branding and headless primary path', () => {
     const doc = await readFile(path.join(repositoryRoot, 'docs', 'chatgpt-plugin.md'), 'utf8');
     expect(doc).toContain('# ECO ChatGPT Web Plugin Setup');
     expect(doc).toContain('connection name **ECO**');
-    expect(doc).toContain('eco-mcp stdio');
+    expect(doc).toContain('eco-node.exe + eco-mcp.cjs');
+    expect(doc).toContain('over stdio');
     expect(doc).toContain('Secure MCP Tunnel');
     expect(doc).toContain('--strict-roots');
-    expect(doc).toContain('Codex local uses the same `eco-mcp.cmd`');
+    expect(doc).toContain('Codex local may use the convenience `eco-mcp.cmd`');
     expect(doc).toContain('lnwjud Desktop/Electron is not required');
     expect(doc).not.toContain('Launch lnwjud Desktop');
     expect(doc).not.toContain('Configure Tunnel in Desktop Settings');
