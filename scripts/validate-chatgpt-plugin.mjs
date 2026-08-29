@@ -5,6 +5,8 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const expectedPluginName = 'eco';
+const expectedDisplayName = 'ECO';
 const requiredSkills = [
   'lnwjud-core',
   'lnwjud-development',
@@ -76,8 +78,7 @@ function resolvePackagePath(root, rawPath, label, errors) {
 function frontmatterName(content) {
   const block = content.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!block?.[1]) return null;
-  const name = block[1].match(/^name:\s*([^\r\n]+)\s*$/m)?.[1]?.trim();
-  return name ?? null;
+  return block[1].match(/^name:\s*([^\r\n]+)\s*$/m)?.[1]?.trim() ?? null;
 }
 
 function collectIds(value, ids = []) {
@@ -103,14 +104,8 @@ function containsPlaceholderConnectorId(appJson) {
 async function scanSecrets(filePaths, errors) {
   const patterns = [
     { label: 'OpenAI API key', regex: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g },
-    {
-      label: 'runtime API key assignment',
-      regex: /\b(?:CONTROL_PLANE_API_KEY|runtime[_ -]?api[_ -]?key)\s*[:=]\s*["']?[A-Za-z0-9_-]{16,}/gi,
-    },
-    {
-      label: 'hard-coded tunnel id',
-      regex: /\btunnel[_ -]?id\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/gi,
-    },
+    { label: 'runtime API key assignment', regex: /\b(?:CONTROL_PLANE_API_KEY|runtime[_ -]?api[_ -]?key)\s*[:=]\s*["']?[A-Za-z0-9_-]{16,}/gi },
+    { label: 'hard-coded tunnel id', regex: /\btunnel[_ -]?id\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/gi },
   ];
 
   for (const filePath of filePaths) {
@@ -118,9 +113,7 @@ async function scanSecrets(filePaths, errors) {
     const content = await readFile(filePath, 'utf8');
     for (const { label, regex } of patterns) {
       regex.lastIndex = 0;
-      if (regex.test(content)) {
-        errors.push(`secret-like ${label} found in ${path.relative(process.cwd(), filePath)}`);
-      }
+      if (regex.test(content)) errors.push(`secret-like ${label} found in ${path.relative(process.cwd(), filePath)}`);
     }
   }
 }
@@ -131,21 +124,21 @@ async function validatePlugin(root) {
   const manifestPath = path.join(root, '.codex-plugin', 'plugin.json');
   const rootPackage = await readJson(packagePath, 'root package.json', errors);
   const manifest = await readJson(manifestPath, 'plugin manifest', errors);
-
   const scannedFiles = [manifestPath];
 
   if (manifest && rootPackage) {
-    if (manifest.name !== 'lnwjud') errors.push(`plugin manifest name must be "lnwjud"`);
+    if (manifest.name !== expectedPluginName) errors.push(`plugin manifest name must be "${expectedPluginName}"`);
     if (manifest.version !== rootPackage.version) {
       errors.push(`plugin manifest version ${String(manifest.version)} does not match package.json version ${String(rootPackage.version)}`);
     }
-    if (manifest.skills !== './skills/') errors.push(`plugin manifest skills must be "./skills/"`);
+    if (manifest.skills !== './skills/') errors.push('plugin manifest skills must be "./skills/"');
 
     const pluginInterface = manifest.interface ?? {};
     for (const field of requiredInterfaceFields) {
-      if (!(field in pluginInterface)) {
-        errors.push(`plugin manifest interface is missing ${field}`);
-      }
+      if (!(field in pluginInterface)) errors.push(`plugin manifest interface is missing ${field}`);
+    }
+    if (pluginInterface.displayName !== expectedDisplayName) {
+      errors.push(`plugin manifest interface.displayName must be "${expectedDisplayName}"`);
     }
 
     const capabilities = pluginInterface.capabilities;
@@ -162,11 +155,14 @@ async function validatePlugin(root) {
       }
     }
 
+    const prompts = pluginInterface.defaultPrompt;
+    if (!Array.isArray(prompts) || prompts.length === 0 || prompts.some((prompt) => typeof prompt !== 'string' || !prompt.includes('ECO'))) {
+      errors.push('plugin manifest interface.defaultPrompt must use ECO branding');
+    }
+
     for (const field of iconFields) {
       const iconPath = resolvePackagePath(root, pluginInterface[field], `interface.${field}`, errors);
-      if (iconPath && !(await exists(iconPath))) {
-        errors.push(`interface.${field} does not exist: ${String(pluginInterface[field])}`);
-      }
+      if (iconPath && !(await exists(iconPath))) errors.push(`interface.${field} does not exist: ${String(pluginInterface[field])}`);
     }
   }
 
@@ -179,32 +175,24 @@ async function validatePlugin(root) {
     }
     const content = await readFile(skillPath, 'utf8');
     const declaredName = frontmatterName(content);
-    if (declaredName !== skill) {
-      errors.push(`skill frontmatter name mismatch for ${skill}: found ${String(declaredName)}`);
-    }
+    if (declaredName !== skill) errors.push(`skill frontmatter name mismatch for ${skill}: found ${String(declaredName)}`);
   }
 
   const appPath = path.join(root, '.app.json');
   if (await exists(appPath)) {
     scannedFiles.push(appPath);
     const appJson = await readJson(appPath, '.app.json', errors);
-    if (appJson && containsPlaceholderConnectorId(appJson)) {
-      errors.push('.app.json contains a placeholder or missing connector id');
-    }
+    if (appJson && containsPlaceholderConnectorId(appJson)) errors.push('.app.json contains a placeholder or missing connector id');
   }
 
   const mcpPath = path.join(root, '.mcp.json');
   if (await exists(mcpPath)) {
     const mcpContent = await readFile(mcpPath, 'utf8');
-    if (/127\.0\.0\.1|localhost/i.test(mcpContent)) {
-      errors.push('.mcp.json must not publish a localhost MCP endpoint for ChatGPT Web');
-    }
+    if (/127\.0\.0\.1|localhost/i.test(mcpContent)) errors.push('.mcp.json must not publish a localhost MCP endpoint for ChatGPT Web');
   }
 
-  const pluginDocPath = path.join(root, 'docs', 'chatgpt-plugin.md');
-  scannedFiles.push(pluginDocPath);
+  scannedFiles.push(path.join(root, 'docs', 'chatgpt-plugin.md'));
   await scanSecrets(scannedFiles, errors);
-
   return errors;
 }
 
