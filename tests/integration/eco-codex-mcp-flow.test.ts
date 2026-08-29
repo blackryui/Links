@@ -1,5 +1,4 @@
-import { Client } from '@modelcontextprotocol/client';
-import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { Client, StdioClientTransport } from '../../packages/mcp-server/tests/eco-client-harness.js';
 import { access, mkdtemp, realpath, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
