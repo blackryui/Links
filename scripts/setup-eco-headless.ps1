@@ -1,0 +1,64 @@
+<#Requires -Version 5.1
+param(
+  [Parameter(Mandatory = $true)][string]$TunnelId,
+  [Parameter(Mandatory = $true)][string[]]$AllowedRoot,
+  [string]$TunnelClientPath,
+  [string]$EcoMcpPath,
+  [switch]$ReplaceRuntimeKey
+)
+
+$ErrorActionPreference = 'Stop'
+$repositoryRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'lib\eco-headless-common.ps1')
+
+$profileDir = Get-EcoProfileDir
+$profileName = Get-EcoProfileName
+$secretPath = Get-EcoSecretPath
+New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+
+$resolvedRoots = @()
+foreach ($root in $AllowedRoot) {
+  $resolved = (Resolve-Path -LiteralPath $root -ErrorAction Stop).Path
+  if (-not (Test-Path -LiteralPath $resolved -PathType Container)) { throw "Allowed root is not a directory: $resolved" }
+  if ($resolvedRoots -notcontains $resolved) { $resolvedRoots += $resolved }
+}
+if ($resolvedRoots.Count -lt 1) { throw 'At least one explicit allowed root is required.' }
+
+$tunnelClient = Resolve-EcoTunnelClientPath $TunnelClientPath
+$ecoMcp = Resolve-EcoMcpPath $repositoryRoot $EcoMcpPath
+$mcpCommand = New-EcoMcpCommand $ecoMcp $resolvedRoots
+
+if ($ReplaceRuntimeKey -or -not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
+  $secureKey = Read-Host 'OpenAI Tunnel runtime API key' -AsSecureString
+  $secureKey | ConvertFrom-SecureString | Set-Content -LiteralPath $secretPath -Encoding UTF8
+}
+
+$keyPointer = $null
+try {
+  $encrypted = Get-Content -LiteralPath $secretPath -Raw
+  $secureKey = ConvertTo-SecureString -String $encrypted
+  $keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+  $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
+
+  & $tunnelClient init @(
+    '--sample', 'sample_mcp_stdio_local',
+    '--profile', 'eco',
+    '--tunnel-id', $TunnelId,
+    '--mcp-command', $mcpCommand
+  )
+  if ($LASTEXITCODE -ne 0) { throw "tunnel-client init failed with exit code $LASTEXITCODE" }
+
+  & $tunnelClient doctor --profile $profileName --profile-dir $profileDir --explain
+  if ($LASTEXITCODE -ne 0) { throw "tunnel-client doctor failed with exit code $LASTEXITCODE" }
+
+  Write-Host 'ECO Headless tunnel profile configured.'
+  Write-Host "Profile: $profileName"
+  Write-Host "Profile directory: $profileDir"
+  Write-Host "ECO MCP: $ecoMcp"
+  Write-Host 'Allowed roots:'
+  $resolvedRoots | ForEach-Object { Write-Host "  - $_" }
+}
+finally {
+  if ($null -ne $keyPointer) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer) }
+  Remove-Item Env:CONTROL_PLANE_API_KEY -ErrorAction SilentlyContinue
+}
