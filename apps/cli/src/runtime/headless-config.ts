@@ -49,6 +49,30 @@ type SettingSpec = {
   decode(value: string | null): unknown;
 };
 
+const PERMISSION_DECISIONS = new Set(['ALLOW', 'ASK', 'DENY']);
+const CUSTOM_PERMISSION_KEYS = ['read', 'write', 'execute', 'dangerous', 'allowedExecutables'] as const;
+const DESTRUCTIVE_POLICY_KEYS = ['protectCriticalFiles', 'recoverableDelete', 'approvals'] as const;
+const DESTRUCTIVE_APPROVAL_KEYS = [
+  'delete_file',
+  'git_rm',
+  'git_clean',
+  'git_reset_restore',
+  'shell_rm_unlink',
+  'shell_rmdir',
+  'shell_del_erase',
+  'wsl_rm_unlink',
+  'wsl_rmdir',
+] as const;
+const EXTENSION_KEYS = [
+  'mode',
+  'disabledServers',
+  'enabledServers',
+  'disabledSkillRoots',
+  'extraSkillRoots',
+  'extraMcpServers',
+] as const;
+const EXTENSION_SERVER_KEYS = ['command', 'args', 'env', 'cwd', 'type'] as const;
+
 const settingSpecs: Readonly<Record<EcoHeadlessConfigKey, SettingSpec>> = {
   'permission-profile': {
     storageKey: STDIO_PERMISSION_PROFILE_SETTING_KEY,
@@ -70,7 +94,8 @@ const settingSpecs: Readonly<Record<EcoHeadlessConfigKey, SettingSpec>> = {
   'custom-permission': {
     storageKey: USER_SETTING_KEYS.customPermissionProfile,
     encode: (value) => {
-      requireJsonObject(value, 'custom-permission');
+      const parsed = requireJsonObject(value, 'custom-permission');
+      validateCustomPermission(parsed);
       return serializeCustomPermissionSettings(parseCustomPermissionSettings(value));
     },
     decode: (value) => value === null ? null : parseCustomPermissionSettings(value),
@@ -106,7 +131,8 @@ const settingSpecs: Readonly<Record<EcoHeadlessConfigKey, SettingSpec>> = {
   'destructive-policy': {
     storageKey: DESTRUCTIVE_AUTO_APPROVAL_SETTING_KEY,
     encode: (value) => {
-      requireJsonObject(value, 'destructive-policy');
+      const parsed = requireJsonObject(value, 'destructive-policy');
+      validateDestructivePolicy(parsed);
       return serializeDestructiveAutoApprovalPolicy(parseDestructiveAutoApprovalPolicy(value, false));
     },
     decode: (value) => value === null ? null : parseDestructiveAutoApprovalPolicy(value, false),
@@ -114,7 +140,8 @@ const settingSpecs: Readonly<Record<EcoHeadlessConfigKey, SettingSpec>> = {
   extensions: {
     storageKey: EXTENSIONS_SETTINGS_KEY,
     encode: (value) => {
-      requireJsonObject(value, 'extensions');
+      const parsed = requireJsonObject(value, 'extensions');
+      validateExtensions(parsed);
       return JSON.stringify(parseExtensionsSettings(value));
     },
     decode: (value) => value === null ? null : redactExtensions(parseExtensionsSettings(value)),
@@ -185,10 +212,8 @@ function requireJsonObject(value: string, label: string): Record<string, unknown
   } catch {
     throw new Error(`${label} must be valid JSON`);
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(`${label} must be a JSON object`);
-  }
-  return parsed as Record<string, unknown>;
+  if (!isRecord(parsed)) throw new Error(`${label} must be a JSON object`);
+  return parsed;
 }
 
 function requireStringRecord(value: string, label: string): Readonly<Record<string, string>> {
@@ -199,6 +224,85 @@ function requireStringRecord(value: string, label: string): Readonly<Record<stri
     }
   }
   return parsed as Readonly<Record<string, string>>;
+}
+
+function validateCustomPermission(record: Record<string, unknown>): void {
+  assertOnlyKeys(record, CUSTOM_PERMISSION_KEYS, 'custom-permission');
+  for (const key of ['read', 'write', 'execute', 'dangerous'] as const) {
+    if (!(key in record)) continue;
+    if (typeof record[key] !== 'string' || !PERMISSION_DECISIONS.has(record[key])) {
+      throw new Error(`custom-permission ${key} must be ALLOW, ASK, or DENY`);
+    }
+  }
+  if ('allowedExecutables' in record) {
+    if (!Array.isArray(record.allowedExecutables)
+      || record.allowedExecutables.some((entry) => typeof entry !== 'string' || entry.trim().length === 0)) {
+      throw new Error('custom-permission allowedExecutables must be an array of non-empty strings');
+    }
+  }
+}
+
+function validateDestructivePolicy(record: Record<string, unknown>): void {
+  assertOnlyKeys(record, DESTRUCTIVE_POLICY_KEYS, 'destructive-policy');
+  if ('protectCriticalFiles' in record && record.protectCriticalFiles !== true) {
+    throw new Error('destructive-policy protectCriticalFiles must remain true');
+  }
+  if ('recoverableDelete' in record && record.recoverableDelete !== true) {
+    throw new Error('destructive-policy recoverableDelete must remain true');
+  }
+  if (!('approvals' in record)) return;
+  if (!isRecord(record.approvals)) throw new Error('destructive-policy approvals must be a JSON object');
+  for (const [key, value] of Object.entries(record.approvals)) {
+    if (!(DESTRUCTIVE_APPROVAL_KEYS as readonly string[]).includes(key)) {
+      throw new Error(`unknown destructive approval: ${key}`);
+    }
+    if (typeof value !== 'boolean') throw new Error(`destructive approval ${key} must be boolean`);
+  }
+}
+
+function validateExtensions(record: Record<string, unknown>): void {
+  assertOnlyKeys(record, EXTENSION_KEYS, 'extensions');
+  if ('mode' in record && record.mode !== 'enable_all' && record.mode !== 'allowlist') {
+    throw new Error('extensions mode must be enable_all or allowlist');
+  }
+  for (const key of ['disabledServers', 'enabledServers', 'disabledSkillRoots', 'extraSkillRoots'] as const) {
+    if (!(key in record)) continue;
+    const value = record[key];
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string' || entry.trim().length === 0)) {
+      throw new Error(`extensions ${key} must be an array of non-empty strings`);
+    }
+  }
+  if (!('extraMcpServers' in record)) return;
+  if (!isRecord(record.extraMcpServers)) throw new Error('extensions extraMcpServers must be a JSON object');
+  for (const [name, rawServer] of Object.entries(record.extraMcpServers)) {
+    if (name.trim().length === 0 || !isRecord(rawServer)) {
+      throw new Error('extensions extraMcpServers entries must be named JSON objects');
+    }
+    assertOnlyKeys(rawServer, EXTENSION_SERVER_KEYS, `extensions extraMcpServers.${name}`);
+    if (typeof rawServer.command !== 'string' || rawServer.command.trim().length === 0) {
+      throw new Error(`extensions extraMcpServers.${name}.command must be a non-empty string`);
+    }
+    if ('args' in rawServer && (!Array.isArray(rawServer.args) || rawServer.args.some((entry) => typeof entry !== 'string'))) {
+      throw new Error(`extensions extraMcpServers.${name}.args must be an array of strings`);
+    }
+    if ('env' in rawServer) {
+      if (!isRecord(rawServer.env)
+        || Object.values(rawServer.env).some((entry) => typeof entry !== 'string')) {
+        throw new Error(`extensions extraMcpServers.${name}.env values must be strings`);
+      }
+    }
+    for (const key of ['cwd', 'type'] as const) {
+      if (key in rawServer && typeof rawServer[key] !== 'string') {
+        throw new Error(`extensions extraMcpServers.${name}.${key} must be a string`);
+      }
+    }
+  }
+}
+
+function assertOnlyKeys(record: Record<string, unknown>, allowed: readonly string[], label: string): void {
+  for (const key of Object.keys(record)) {
+    if (!allowed.includes(key)) throw new Error(`unknown ${label} setting: ${key}`);
+  }
 }
 
 function redactExtensions(settings: ExtensionsSettings): ExtensionsSettings {
@@ -222,4 +326,8 @@ function withSettings<T>(dataPath: string, operation: (settings: SqliteSettingsR
   } finally {
     database.close();
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
