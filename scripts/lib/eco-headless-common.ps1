@@ -206,7 +206,13 @@ function ConvertTo-EcoQuotedArgument([string]$Value) {
   return '"' + ($Value -replace '"', '\"') + '"'
 }
 
-function New-EcoMcpCommand([string]$EcoMcpPath, [string[]]$AllowedRoots) {
+function New-EcoMcpCommand {
+  param(
+    [Parameter(Mandatory = $true)][string]$EcoMcpPath,
+    [Parameter(Mandatory = $true)][string[]]$AllowedRoots,
+    [bool]$EnableCodexTools = $false
+  )
+
   if ($AllowedRoots.Count -lt 1) { throw 'At least one explicit allowed root is required.' }
   $parts = @((ConvertTo-EcoQuotedArgument $EcoMcpPath), '--strict-roots')
   foreach ($root in $AllowedRoots) {
@@ -217,5 +223,6 @@ function New-EcoMcpCommand([string]$EcoMcpPath, [string[]]$AllowedRoots) {
   $parts += (ConvertTo-EcoQuotedArgument $AllowedRoots[0])
   $parts += '--profile'
   $parts += 'full'
+  if ($EnableCodexTools) { $parts += '--enable-codex-tools' }
   return ($parts -join ' ')
 }
