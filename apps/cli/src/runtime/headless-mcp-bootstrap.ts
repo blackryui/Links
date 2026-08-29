@@ -57,6 +57,13 @@ export async function runHeadlessMcp(
   argv: readonly string[] = process.argv,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<HeadlessMcpHandle> {
+  const enableCodexTools = hasFlag(argv, '--enable-codex-tools');
+  const disableCodexTools = hasFlag(argv, '--disable-codex-tools');
+  if (enableCodexTools && disableCodexTools) {
+    throw new Error('--enable-codex-tools and --disable-codex-tools cannot be used together');
+  }
+  const codexToolsOverride = enableCodexTools ? true : disableCodexTools ? false : undefined;
+
   const dataPath = resolveLnwjudDataPath(env);
   fs.mkdirSync(dataPath, { recursive: true });
   const restore = applyPendingSqliteRestoreSync(path.join(dataPath, 'lnwjud.sqlite'), path.join(dataPath, 'backups'));
@@ -168,10 +175,13 @@ export async function runHeadlessMcp(
     permissionProfile: profileName,
     ...(strictAllowedRoots === undefined ? {} : { strictAllowedRoots }),
   });
+  const effectiveCodexToolsEnabled = codexToolsOverride ?? runtime.codexToolsEnabled;
   await runtime.activityReady;
   process.stderr.write(
     `lnwjud MCP stdio ready primary=${workspace.id} root=${workspace.realRootPath} profile=${profileName}`
-      + `${unrestricted ? ' unrestricted=1' : ''}${strictAllowedRoots === undefined ? '' : ` strict_roots=${strictAllowedRoots.length}`}\n`,
+      + `${unrestricted ? ' unrestricted=1' : ''}`
+      + `${strictAllowedRoots === undefined ? '' : ` strict_roots=${strictAllowedRoots.length}`}`
+      + `${effectiveCodexToolsEnabled ? ' codex_tools=1' : ''}\n`,
   );
 
   let shuttingDown = false;
@@ -191,7 +201,7 @@ export async function runHeadlessMcp(
     services: runtime.services,
     actor: runtime.actor,
     activityTracker: runtime.activityTracker,
-    codexToolsEnabled: runtime.codexToolsEnabled,
+    codexToolsEnabled: effectiveCodexToolsEnabled,
     profileProvider: runtime.profileProvider,
     allowAiDeleteProvider: runtime.allowAiDeleteProvider,
     destructivePolicyProvider: runtime.destructivePolicyProvider,
