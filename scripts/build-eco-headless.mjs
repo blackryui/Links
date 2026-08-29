@@ -26,13 +26,14 @@ if (nodeMajor !== 24) {
 rmSync(outputRoot, { recursive: true, force: true });
 mkdirSync(outputRoot, { recursive: true });
 
+// Use a version-pinned standalone esbuild invocation instead of borrowing the
+// Desktop workspace's devDependency. This keeps ECO source builds independent
+// of Electron/Desktop package ownership while retaining a reproducible version.
 const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 const build = spawnSync(corepack, [
   'pnpm@10.15.0',
-  '--filter',
-  '@lnwjud/desktop',
-  'exec',
-  'esbuild',
+  'dlx',
+  'esbuild@0.25.12',
   cliEntry,
   '--bundle',
   '--platform=node',
@@ -64,6 +65,7 @@ const metadata = {
   sourceEntry: 'apps/cli/src/bin/mcp-stdio.ts',
   parityInventory: 'docs/eco-headless-parity.json',
   transport: 'stdio',
+  bundler: 'esbuild@0.25.12',
   artifacts: [
     'eco-mcp.cjs',
     'eco-mcp.cmd',
