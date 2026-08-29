@@ -11,6 +11,7 @@ describe('ECO local Codex MCP registration', () => {
     expect(setup).toContain('eco-node.exe');
     expect(setup).toContain('eco-mcp.cjs');
     expect(setup).toContain('--strict-roots');
+    expect(setup).toContain('--trusted-host-approval');
     expect(setup).toContain('--allowed-root');
     expect(setup).toContain('--workspace');
     expect(setup).toContain('mcp get $script:EcoProfileName --json');
@@ -25,5 +26,6 @@ describe('ECO local Codex MCP registration', () => {
     expect(runtime).toContain('DEFAULT_CODEX_TOOLS_ENABLED');
     expect(runtime).toContain('codexToolsEnabled: parseBooleanSetting');
     expect(bootstrap).toContain('codexToolsEnabled: runtime.codexToolsEnabled');
+    expect(bootstrap).toContain('hostMutationApprovalProvider');
   });
 });
