@@ -9,7 +9,6 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = path.join(root, 'dist', 'eco-headless');
-const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 const bridgeSource = path.join(root, 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1');
 const ocrSource = path.join(root, 'native', 'windows-ocr', 'bin', 'lnwjud-windows-ocr.exe');
 const ripgrepSource = path.join(root, 'apps', 'desktop', 'build', 'runtime-tools', 'ripgrep');
@@ -33,7 +32,24 @@ async function runPowerShell(scriptPath) {
     '-NonInteractive',
     '-ExecutionPolicy', 'Bypass',
     '-File', scriptPath,
-  ], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
+  ], { cwd: root, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+}
+
+async function runEsbuild() {
+  const commandProcessor = process.env.ComSpec ?? process.env.COMSPEC ?? 'cmd.exe';
+  const command = [
+    'corepack pnpm@10.15.0 --filter @lnwjud/desktop exec esbuild',
+    '../cli/src/bin/mcp-stdio.ts',
+    '--bundle',
+    '--platform=node',
+    '--format=cjs',
+    '--outfile=../../dist/eco-headless/eco-mcp.cjs',
+  ].join(' ');
+  await execFileAsync(commandProcessor, ['/d', '/s', '/c', command], {
+    cwd: root,
+    windowsHide: true,
+    maxBuffer: 16 * 1024 * 1024,
+  });
 }
 
 async function prepareWindowsRuntimeTools() {
@@ -53,19 +69,9 @@ async function build() {
   await mkdir(distRoot, { recursive: true });
 
   // Reuse the exact esbuild dependency already owned by @lnwjud/desktop as a
-  // build tool only. `pnpm --filter ... exec` runs from apps/desktop, so keep
-  // entry/output paths relative to that workspace. The generated runtime is
-  // the CLI stdio entrypoint and contains no Electron/Desktop host import.
-  await execFileAsync(corepack, [
-    'pnpm@10.15.0',
-    '--filter', '@lnwjud/desktop',
-    'exec', 'esbuild',
-    '../cli/src/bin/mcp-stdio.ts',
-    '--bundle',
-    '--platform=node',
-    '--format=cjs',
-    '--outfile=../../dist/eco-headless/eco-mcp.cjs',
-  ], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
+  // build tool only. The generated runtime is the CLI stdio entrypoint and
+  // contains no Electron/Desktop host import.
+  await runEsbuild();
 
   // Match upstream packaged stdio behavior: carry a private Node 24 runtime
   // and verified ripgrep so ECO search/runtime do not depend on system PATH.
