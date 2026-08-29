@@ -1,7 +1,7 @@
 {
   "name": "eco",
   "version": "4.13.0",
-  "description": "ECO connects ChatGPT and Codex to the lnwjud Windows-first local MCP runtime.",
+  "description": "ECO connects ChatGPT and Codex to the current lnwjud-compatible Windows agent runtime through headless MCP.",
   "author": {
     "name": "Adisorn / lnwjud project",
     "url": "https://github.com/engasnm111/lnwjud"
@@ -13,8 +13,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "ECO",
-    "shortDescription": "Use ECO to work with your Windows machine",
-    "longDescription": "ECO routes ChatGPT and Codex workflows to the connected lnwjud MCP runtime. Files, processes, Windows automation, browser control, Office actions, and other side effects continue to run on the user's Windows machine under lnwjud permissions and approval boundaries.",
+    "shortDescription": "Use ECO headless MCP with your Windows projects",
+    "longDescription": "ECO routes ChatGPT and Codex workflows through a headless stdio MCP entrypoint to the shared lnwjud runtime. Files, Git, processes, Windows automation, browser control, Office actions, WSL, recovery, tasks, and other local capabilities remain on the user's Windows machine under the shared runtime's workspace, permission, and safety boundaries; lnwjud Desktop/Electron is not required.",
     "developerName": "ECO",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
