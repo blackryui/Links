@@ -127,7 +127,7 @@ async function validateHeadlessDocs(root, scannedFiles, errors) {
   if (!(await exists(codexDocPath))) errors.push('docs/eco-codex.md is missing');
 
   const chatgptDoc = await readFile(chatgptDocPath, 'utf8');
-  for (const required of ['ECO', 'Secure MCP Tunnel', 'eco-mcp stdio', '--strict-roots', 'Codex']) {
+  for (const required of ['ECO', 'Secure MCP Tunnel', 'eco-node.exe + eco-mcp.cjs', 'over stdio', '--strict-roots', 'Codex']) {
     if (!chatgptDoc.includes(required)) errors.push(`ChatGPT ECO docs must include ${required}`);
   }
   for (const forbidden of ['Launch lnwjud Desktop', 'Configure Tunnel in Desktop Settings', 'Desktop loopback HTTP MCP']) {
