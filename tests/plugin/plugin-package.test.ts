@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { access, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
@@ -57,6 +58,48 @@ async function runValidator(root: string): Promise<{ ok: boolean; stdout: string
   }
 }
 
+async function writeJson(filePath: string, value: unknown): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+async function createValidFixture(): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), 'lnwjud-plugin-'));
+  const manifest = {
+    name: 'lnwjud',
+    version: '4.13.0',
+    description: 'fixture',
+    author: { name: 'lnwjud project' },
+    repository: 'https://github.com/blackryui/Links',
+    license: 'MIT',
+    skills: './skills/',
+    interface: {
+      displayName: 'lnwjud',
+      capabilities: ['Interactive', 'Read', 'Write'],
+      composerIcon: './assets/icon.png',
+      logo: './assets/icon.png',
+      logoDark: './assets/icon.png',
+    },
+  };
+
+  await writeJson(path.join(root, 'package.json'), { name: 'lnwjud', version: '4.13.0' });
+  await writeJson(path.join(root, '.codex-plugin', 'plugin.json'), manifest);
+  await mkdir(path.join(root, 'assets'), { recursive: true });
+  await writeFile(path.join(root, 'assets', 'icon.png'), 'fixture', 'utf8');
+
+  for (const skill of requiredSkills) {
+    const skillPath = path.join(root, 'skills', skill, 'SKILL.md');
+    await mkdir(path.dirname(skillPath), { recursive: true });
+    await writeFile(
+      skillPath,
+      `---\nname: ${skill}\ndescription: Fixture skill for validator testing.\n---\n\n# ${skill}\n`,
+      'utf8',
+    );
+  }
+
+  return root;
+}
+
 describe('ChatGPT plugin package', () => {
   it('declares a version-synchronized plugin manifest', async () => {
     const manifestPath = path.join(repositoryRoot, '.codex-plugin', 'plugin.json');
@@ -99,5 +142,54 @@ describe('ChatGPT plugin package', () => {
     const result = await runValidator(repositoryRoot);
     expect(result.ok, result.stderr || result.stdout).toBe(true);
     expect(result.stdout).toContain('ChatGPT plugin package validation passed.');
+  });
+
+  it('rejects manifest version drift', async () => {
+    const root = await createValidFixture();
+    try {
+      const manifestPath = path.join(root, '.codex-plugin', 'plugin.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+      manifest.version = '9.9.9';
+      await writeJson(manifestPath, manifest);
+
+      const result = await runValidator(root);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain('version');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects placeholder app connector identifiers', async () => {
+    const root = await createValidFixture();
+    try {
+      await writeJson(path.join(root, '.app.json'), {
+        apps: { lnwjud: { id: 'connector_xxxxxxxxxxxxxxxxx' } },
+      });
+
+      const result = await runValidator(root);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain('placeholder');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects secret-like credentials in plugin skill files', async () => {
+    const root = await createValidFixture();
+    try {
+      const skillPath = path.join(root, 'skills', 'lnwjud-core', 'SKILL.md');
+      await writeFile(
+        skillPath,
+        '---\nname: lnwjud-core\ndescription: fixture\n---\n\nNever commit sk-proj-abcdefghijklmnopqrstuvwxyz1234567890.\n',
+        'utf8',
+      );
+
+      const result = await runValidator(root);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain('secret-like');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
