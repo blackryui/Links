@@ -22,7 +22,8 @@ describe('MVP release verification gate', () => {
     ];
     let previousIndex = -1;
     for (const stage of stages) {
-      const index = script.indexOf(stage);
+      const needle = `Invoke-ReleaseStage '${stage}'`;
+      const index = script.indexOf(needle);
       expect(index, `missing release stage: ${stage}`).toBeGreaterThan(previousIndex);
       previousIndex = index;
     }
