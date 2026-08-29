@@ -13,6 +13,19 @@ const requiredSkills = [
   'lnwjud-office',
   'lnwjud-long-session',
 ];
+const requiredInterfaceFields = [
+  'displayName',
+  'shortDescription',
+  'longDescription',
+  'developerName',
+  'category',
+  'capabilities',
+  'websiteURL',
+  'privacyPolicyURL',
+  'termsOfServiceURL',
+  'defaultPrompt',
+];
+const requiredUrlFields = ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL'];
 const iconFields = ['composerIcon', 'logo', 'logoDark'];
 
 function resolveRoot(argv) {
@@ -128,17 +141,31 @@ async function validatePlugin(root) {
     }
     if (manifest.skills !== './skills/') errors.push(`plugin manifest skills must be "./skills/"`);
 
-    const capabilities = manifest.interface?.capabilities;
+    const pluginInterface = manifest.interface ?? {};
+    for (const field of requiredInterfaceFields) {
+      if (!(field in pluginInterface)) {
+        errors.push(`plugin manifest interface is missing ${field}`);
+      }
+    }
+
+    const capabilities = pluginInterface.capabilities;
     for (const required of ['Interactive', 'Read', 'Write']) {
       if (!Array.isArray(capabilities) || !capabilities.includes(required)) {
         errors.push(`plugin manifest interface.capabilities must include ${required}`);
       }
     }
 
+    for (const field of requiredUrlFields) {
+      const value = pluginInterface[field];
+      if (typeof value !== 'string' || !value.startsWith('https://')) {
+        errors.push(`plugin manifest interface.${field} must be an https URL`);
+      }
+    }
+
     for (const field of iconFields) {
-      const iconPath = resolvePackagePath(root, manifest.interface?.[field], `interface.${field}`, errors);
+      const iconPath = resolvePackagePath(root, pluginInterface[field], `interface.${field}`, errors);
       if (iconPath && !(await exists(iconPath))) {
-        errors.push(`interface.${field} does not exist: ${String(manifest.interface?.[field])}`);
+        errors.push(`interface.${field} does not exist: ${String(pluginInterface[field])}`);
       }
     }
   }
