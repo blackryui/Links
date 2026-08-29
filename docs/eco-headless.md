@@ -1,6 +1,6 @@
 # ECO Headless on Windows
 
-ECO Headless runs the current lnwjud Windows agent runtime as an MCP process for ChatGPT and Codex without requiring lnwjud Desktop, Electron, a tray process, or a public inbound MCP port.
+ECO Headless runs the current compatible lnwjud Windows agent runtime as an MCP process for ChatGPT and Codex without requiring lnwjud Desktop, Electron, a tray process, or a public inbound MCP port.
 
 ## Architecture
 
@@ -10,7 +10,6 @@ ChatGPT Web
   -> OpenAI Secure MCP Tunnel
   -> tunnel-client.exe
   -> stdio
-  -> eco-mcp.cmd
   -> eco-node.exe + eco-mcp.cjs
   -> shared apps/cli headless bootstrap
   -> shared packages/mcp-server ToolRegistry
@@ -21,11 +20,13 @@ Codex local
   -> the same shared bootstrap and ToolRegistry
 ```
 
+`eco-mcp.cmd` is shipped only as a manual/convenience launcher. The generated ChatGPT Tunnel and Codex registrations both use the direct `eco-node.exe + eco-mcp.cjs` process path.
+
 The user-facing product name is **ECO**. Internal `@lnwjud/*`, `LNWJUD_*`, SQLite and tool/skill compatibility names remain intentionally unchanged so ECO reuses the latest lnwjud runtime instead of forking it.
 
 ## Feature-parity rule
 
-ECO is not a reduced CLI edition. The release baseline is the current `engasnm111/lnwjud` `main` runtime, recorded in `docs/eco-headless-parity.json` and checked again before release.
+ECO is not a reduced CLI edition. The release baseline is the current `engasnm111/lnwjud` `main` runtime, recorded in `docs/eco-headless-parity.json` and checked again immediately before release.
 
 The machine-readable parity inventory classifies MCP, project/workspace, files/recovery, Git, process, browser, Windows, WSL, Office, extensions, state, goals/tasks, Codex, tunnel lifecycle and security behavior. A release must not contain an unexplained missing or blocked runtime category.
 
@@ -62,7 +63,7 @@ dist/eco-headless/
   PACKAGE.json
 ```
 
-`eco-mcp.cjs` is bundled from `apps/cli/src/bin/mcp-stdio.ts`. It does not create a second ToolRegistry and does not require Electron.
+`eco-mcp.cjs` is bundled from `apps/cli/src/bin/mcp-stdio.ts`. It does not create a second ToolRegistry and does not require Electron. `eco-node.exe` is the private Node 24 runtime used directly by both ChatGPT Tunnel and Codex MCP.
 
 ## 2. Configure strict project roots and the Secure MCP Tunnel
 
@@ -87,16 +88,42 @@ For multiple roots, pass an array from PowerShell:
 Setup performs these operations:
 
 1. Canonicalizes every allowed root and refuses a missing root.
-2. Builds/resolves `eco-mcp`.
+2. Builds/resolves `eco-node.exe`, `eco-mcp.cjs` and the convenience launcher.
 3. Prompts for the tunnel runtime API key with `Read-Host -AsSecureString`.
 4. Stores only the DPAPI-encrypted key at `%APPDATA%\tunnel-client\eco.runtime.secret`.
-5. Calls the official tunnel-client stdio flow using `sample_mcp_stdio_local`, profile `eco`, the real tunnel ID and an MCP command containing `--strict-roots`, repeated `--allowed-root`, and the selected primary `--workspace`.
-6. Runs `tunnel-client doctor`.
-7. Saves only non-secret local lifecycle configuration to `%APPDATA%\tunnel-client\eco.headless.config.json`.
+5. Calls the official tunnel-client stdio flow using `sample_mcp_stdio_local`, profile `eco`, the real tunnel ID and the direct MCP command `eco-node.exe eco-mcp.cjs ...`.
+6. The generated command includes `--strict-roots`, `--trusted-host-approval`, repeated `--allowed-root`, the selected primary `--workspace`, and the chosen lnwjud permission profile.
+7. Runs `tunnel-client doctor`.
+8. Saves only non-secret local lifecycle configuration to `%APPDATA%\tunnel-client\eco.headless.config.json`.
 
 The primary ECO path does not create a loopback HTTP MCP server and does not use `server_urls`.
 
-## 3. Start, inspect and stop ECO
+## 3. Trusted host approval: what it means
+
+The lnwjud ToolRegistry has a second host-owned approval boundary for confirmed/destructive mutations. Desktop provided that boundary with a local dialog. ECO Headless replaces only that host adapter, not the rest of the safety model.
+
+Generated ChatGPT/Codex registrations therefore include:
+
+```text
+--trusted-host-approval
+```
+
+With that flag, ECO trusts the configured ChatGPT/Codex host to perform its own interaction/approval policy before forwarding an action. The MCP server's final host-approval provider can then approve a tool call **only after the shared ToolRegistry has already required the tool-level confirmation and passed all other guards**.
+
+This flag does **not** make mutations unconditional:
+
+- A destructive tool that requires `userConfirmed:true` still fails without it.
+- The permission profile must still allow the action.
+- The target workspace must still be in the explicit Active Project/strict-root set.
+- Secret/path/critical-file guards still apply.
+- Destructive Git/file policy, recovery, checkpoint and recoverable-delete behavior still apply.
+- ChatGPT/Codex host permissions should remain configured to ask/review write or important actions according to the user's risk preference.
+
+Raw/manual stdio startup without `--trusted-host-approval` retains upstream fail-closed behavior: confirmed/destructive actions requiring the host provider remain denied.
+
+Do not add `--trusted-host-approval` to an untrusted generic MCP client command merely to make a blocked operation work.
+
+## 4. Start, inspect and stop ECO
 
 Start the tunnel in a hidden background worker:
 
@@ -116,6 +143,8 @@ For machine-readable status:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\status-eco-tunnel.ps1 -Json
 ```
 
+Status reports the direct private Node/bundle presence, whether trusted-host mode was configured, the explicit roots, tunnel ownership and bounded diagnostics; it never decrypts or prints the runtime API key.
+
 Stop ECO:
 
 ```powershell
@@ -126,7 +155,7 @@ The worker records its PID and process start time plus the exact tunnel-client c
 
 Tunnel logs are written under `%APPDATA%\tunnel-client\eco-tunnel.log`. The lifecycle has a capped rapid-restart policy rather than an unlimited restart loop.
 
-## 4. Connect ChatGPT to ECO
+## 5. Connect ChatGPT to ECO
 
 The Secure MCP Tunnel must already be associated with the ChatGPT workspace that will use it.
 
@@ -138,7 +167,8 @@ In a ChatGPT workspace with the required custom-app/developer capabilities:
 4. Select the associated tunnel or paste the real tunnel ID requested by the UI.
 5. Scan/refresh the MCP tools.
 6. Create/save the app.
-7. Start with a read-only smoke request before allowing a write.
+7. Configure app permissions so reads/writes/important actions have the confirmation behavior you want; do not weaken ECO's local guards to compensate for a ChatGPT-layer denial.
+8. Start with a read-only smoke request before allowing a write.
 
 Suggested first prompt:
 
@@ -152,11 +182,13 @@ Suggested controlled write after read access succeeds:
 Use ECO to make one exact text edit inside the configured project, verify the change, and show the Git diff. Do not modify files outside the configured roots.
 ```
 
+For a destructive acceptance test, use only a disposable file. Confirm the exact tool action through the host when prompted; the tool call must still carry its explicit confirmation contract.
+
 If a schema changes after an ECO/lnwjud upgrade, refresh the ChatGPT connector/app and open a new chat if the current conversation retains stale tool metadata.
 
 Do not commit a guessed `.app.json`. A connector/app binding may be added only after ChatGPT supplies a real identifier and only when that binding is appropriate to store.
 
-## 5. Register the same ECO runtime with Codex
+## 6. Register the same ECO runtime with Codex
 
 After ECO Headless setup/build, register the same bundle with Codex:
 
@@ -176,27 +208,31 @@ The script uses the official Codex MCP CLI flow:
 codex mcp add eco -- <COMMAND> <ARGS...>
 ```
 
-It does not edit `.codex/config.toml` directly. On Windows it registers `eco-node.exe` as the process executable and `eco-mcp.cjs` as the shared MCP bundle, followed by the same strict-root/profile/workspace arguments used by ECO Headless.
+It does not edit `.codex/config.toml` directly. On Windows it registers `eco-node.exe` as the process executable and `eco-mcp.cjs` as the shared MCP bundle, followed by the same strict-root/trusted-host/profile/workspace arguments used by the ChatGPT Tunnel.
 
-The local Codex MCP path and the ChatGPT Tunnel path therefore terminate in the same application services and ToolRegistry.
+The local Codex MCP path and the ChatGPT Tunnel path therefore terminate in the same application services and ToolRegistry. Keep Codex approval policy appropriately interactive for mutation work; ECO's trusted-host adapter is not a substitute for client-host governance.
 
 ## Security model without Desktop
 
-Desktop-native approval dialogs do not exist in the headless product, so ECO does not pretend they do. Effective authority is the intersection of:
+Desktop-native approval dialogs do not exist in the headless product. Their operational role is replaced by the explicit trusted-host adapter plus ChatGPT/Codex host permissions while all shared local guards remain active.
+
+Effective authority is the intersection of:
 
 ```text
 ChatGPT/Codex host permissions and approvals
+AND trusted-host adapter enabled only for configured client paths
 AND Secure MCP Tunnel availability when ChatGPT is the client
 AND ECO/lnwjud permission profile
 AND explicit strict allowed roots
 AND Active Project/workspace mutation boundaries
-AND tool-specific confirmation/destructive policy
+AND tool-level confirmation/destructive policy
 AND critical-file/path/secret protection
 ```
 
 Defaults and invariants:
 
 - Setup requires at least one explicit existing allowed root.
+- Multiple explicit roots become the active workspace set; the first root is primary.
 - `--strict-roots` is always present in generated ECO connections.
 - Unrestricted mode is not enabled by ECO setup.
 - AI delete auto-approval is not enabled by ECO setup.
@@ -235,9 +271,18 @@ corepack pnpm@10.15.0 validate:eco:parity
 corepack pnpm@10.15.0 --filter @lnwjud/cli test:eco
 corepack pnpm@10.15.0 build:eco
 corepack pnpm@10.15.0 test:eco:packaging
+corepack pnpm@10.15.0 test:eco:tunnel
+corepack pnpm@10.15.0 test:eco:integration
+corepack pnpm@10.15.0 validate:eco:upstream
 ```
 
-The release gate must additionally run integration, capability, ChatGPT/Codex smoke and current-upstream parity verification before ECO is described as feature-parity complete.
+The authoritative Windows gate is:
+
+```powershell
+corepack pnpm@10.15.0 verify:eco
+```
+
+The release gate must additionally preserve the existing lnwjud release suite and pass real ChatGPT/Codex Windows acceptance before ECO is described as feature-parity complete.
 
 ## Troubleshooting
 
@@ -260,6 +305,10 @@ Re-run `setup-eco-headless.ps1`. Do not copy the plaintext key into a repository
 ### A workspace is denied
 
 Check `status-eco-tunnel.ps1` and the explicit allowed roots. Re-run setup only when the additional root is intentionally trusted.
+
+### A destructive tool still returns `HOST_APPROVAL_REQUIRED`
+
+Confirm the connection was generated by ECO setup and `status-eco-tunnel.ps1` reports trusted-host mode. Do not manually add the flag to an untrusted client. Also verify the tool-level confirmation (`userConfirmed`) and permission/destructive policy requirements were satisfied.
 
 ### ChatGPT shows stale tools
 
