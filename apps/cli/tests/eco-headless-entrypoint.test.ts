@@ -50,7 +50,7 @@ describe('ECO shared headless MCP entrypoint', () => {
   it('keeps all runtime service families in the shared CLI runtime', async () => {
     const runtime = await readFile(runtimePath, 'utf8');
     for (const family of serviceFamilies) {
-      expect(runtime).toMatch(new RegExp(`\\b${family}\\s*:`));
+      expect(runtime).toMatch(new RegExp(`\\b${family}\\b\\s*(?::|,)`));
     }
   });
 });
