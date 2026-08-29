@@ -39,12 +39,7 @@ function resolveRoot(argv) {
 }
 
 async function exists(filePath) {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
+  try { await access(filePath); return true; } catch { return false; }
 }
 
 async function readJson(filePath, label, errors) {
@@ -118,6 +113,28 @@ async function scanSecrets(filePaths, errors) {
   }
 }
 
+async function validateHeadlessDocs(root, scannedFiles, errors) {
+  const chatgptDocPath = path.join(root, 'docs', 'chatgpt-plugin.md');
+  const operatorDocPath = path.join(root, 'docs', 'eco-headless.md');
+  const codexDocPath = path.join(root, 'docs', 'eco-codex.md');
+  scannedFiles.push(chatgptDocPath, operatorDocPath, codexDocPath);
+
+  if (!(await exists(chatgptDocPath))) {
+    errors.push('docs/chatgpt-plugin.md is missing');
+    return;
+  }
+  if (!(await exists(operatorDocPath))) errors.push('docs/eco-headless.md is missing');
+  if (!(await exists(codexDocPath))) errors.push('docs/eco-codex.md is missing');
+
+  const chatgptDoc = await readFile(chatgptDocPath, 'utf8');
+  for (const required of ['ECO', 'Secure MCP Tunnel', 'eco-mcp stdio', '--strict-roots', 'Codex']) {
+    if (!chatgptDoc.includes(required)) errors.push(`ChatGPT ECO docs must include ${required}`);
+  }
+  for (const forbidden of ['Launch lnwjud Desktop', 'Configure Tunnel in Desktop Settings', 'Desktop loopback HTTP MCP']) {
+    if (chatgptDoc.includes(forbidden)) errors.push(`ChatGPT ECO primary path must not require Desktop: ${forbidden}`);
+  }
+}
+
 async function validatePlugin(root) {
   const errors = [];
   const packagePath = path.join(root, 'package.json');
@@ -137,27 +154,28 @@ async function validatePlugin(root) {
     for (const field of requiredInterfaceFields) {
       if (!(field in pluginInterface)) errors.push(`plugin manifest interface is missing ${field}`);
     }
-    if (pluginInterface.displayName !== expectedDisplayName) {
-      errors.push(`plugin manifest interface.displayName must be "${expectedDisplayName}"`);
+    if (pluginInterface.displayName !== expectedDisplayName) errors.push(`plugin manifest interface.displayName must be "${expectedDisplayName}"`);
+    if (typeof manifest.description !== 'string' || !/headless MCP/i.test(manifest.description)) errors.push('plugin description must describe ECO headless MCP');
+    if (typeof pluginInterface.longDescription !== 'string' || !/headless stdio MCP/i.test(pluginInterface.longDescription)) {
+      errors.push('plugin longDescription must describe the headless stdio MCP path');
     }
 
     const capabilities = pluginInterface.capabilities;
     for (const required of ['Interactive', 'Read', 'Write']) {
-      if (!Array.isArray(capabilities) || !capabilities.includes(required)) {
-        errors.push(`plugin manifest interface.capabilities must include ${required}`);
-      }
+      if (!Array.isArray(capabilities) || !capabilities.includes(required)) errors.push(`plugin manifest interface.capabilities must include ${required}`);
     }
 
     for (const field of requiredUrlFields) {
       const value = pluginInterface[field];
-      if (typeof value !== 'string' || !value.startsWith('https://')) {
-        errors.push(`plugin manifest interface.${field} must be an https URL`);
-      }
+      if (typeof value !== 'string' || !value.startsWith('https://')) errors.push(`plugin manifest interface.${field} must be an https URL`);
     }
 
     const prompts = pluginInterface.defaultPrompt;
     if (!Array.isArray(prompts) || prompts.length === 0 || prompts.some((prompt) => typeof prompt !== 'string' || !prompt.includes('ECO'))) {
       errors.push('plugin manifest interface.defaultPrompt must use ECO branding');
+    }
+    if (Array.isArray(prompts) && prompts.some((prompt) => typeof prompt === 'string' && prompt.length > 128)) {
+      errors.push('plugin manifest default prompts must be at most 128 characters');
     }
 
     for (const field of iconFields) {
@@ -191,7 +209,7 @@ async function validatePlugin(root) {
     if (/127\.0\.0\.1|localhost/i.test(mcpContent)) errors.push('.mcp.json must not publish a localhost MCP endpoint for ChatGPT Web');
   }
 
-  scannedFiles.push(path.join(root, 'docs', 'chatgpt-plugin.md'));
+  await validateHeadlessDocs(root, scannedFiles, errors);
   await scanSecrets(scannedFiles, errors);
   return errors;
 }
