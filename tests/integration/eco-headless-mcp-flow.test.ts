@@ -48,7 +48,7 @@ describe('ECO headless real MCP project flow', () => {
       await client.connect(transport);
       const catalog = await client.listTools();
       const toolNames = catalog.tools.map((tool) => tool.name);
-      for (const required of ['workspace_list', 'workspace_info', 'project_snapshot', 'read_file', 'write_file', 'edit_file', 'git_status', 'list_checkpoints']) {
+      for (const required of ['workspace_list', 'workspace_info', 'workspace_full_scan', 'project_snapshot', 'read_file', 'write_file', 'edit_file', 'git_status', 'list_checkpoints']) {
         expect(toolNames).toContain(required);
       }
       expect(toolNames.some((name) => name.startsWith('codex_'))).toBe(false);
@@ -87,6 +87,9 @@ describe('ECO headless real MCP project flow', () => {
       const checkpoints = await callTool(client, 'list_checkpoints', { workspaceId, limit: 20 });
       expect(JSON.stringify(checkpoints)).toContain('app.ts');
 
+      const indexedScan = await callTool(client, 'workspace_full_scan', { workspaceId, includeIgnored: false, pageSize: 100 });
+      expect(JSON.stringify(indexedScan)).toContain('src/app.ts');
+
       const snapshot = await callTool(client, 'project_snapshot', { workspaceId });
       expect(JSON.stringify(snapshot)).toContain('git');
 
@@ -94,8 +97,7 @@ describe('ECO headless real MCP project flow', () => {
       expect(hasStructuredError(outside)).toBe(true);
 
       await access(path.join(dataRoot, 'lnwjud.sqlite'));
-      await access(path.join(dataRoot, 'workspace-index'));
-      await access(path.join(dataRoot, 'mcp-activity.jsonl'));
+      await access(path.join(dataRoot, 'mcp-activity.log'));
     } finally {
       await client.close();
     }
