@@ -87,7 +87,9 @@ try {
 
     Invoke-ReleaseStage 'docs:tools:check' @('docs:tools:check')
 
-    # Release-mode parity runs only after the live tool catalog has been checked.
+    # Release-mode parity requires both a fresh upstream-main check and a
+    # complete local parity inventory with no blocked/missing category.
+    Invoke-ReleaseStage 'validate:eco:upstream' @('validate:eco:upstream')
     Invoke-ReleaseStage 'validate:eco:release' @('validate:eco:release')
     Invoke-ReleaseStage 'test:eco:release-gate' @('test:eco:release-gate')
 
