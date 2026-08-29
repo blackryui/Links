@@ -55,7 +55,7 @@ import {
   SqliteSettingsRepository,
   SqliteWorkspaceRepository,
 } from '@lnwjud/storage';
-import { allFixedDriveRoots, machineRootPath, SecretPolicy, WorkspacePathGuard, WorkspaceService, type Workspace } from '@lnwjud/workspace';
+import { allFixedDriveRoots, machineRootPath, normalizeWorkspaceRoot, SecretPolicy, WorkspacePathGuard, WorkspaceService, type Workspace } from '@lnwjud/workspace';
 import { StrictWorkspaceRepository } from './strict-workspace-repository.js';
 
 export interface StdioMcpRuntime {
@@ -68,6 +68,7 @@ export interface StdioMcpRuntime {
   readonly allowAiDeleteProvider: () => boolean;
   readonly destructivePolicyProvider: () => DestructiveAutoApprovalPolicy;
   readonly activeWorkspaceScopeProvider: () => Promise<WorkspaceScope>;
+  readonly activeWorkspaceScopesProvider: () => Promise<readonly WorkspaceScope[]>;
   readonly codexToolsEnabled: boolean;
   close(): Promise<void>;
 }
@@ -183,8 +184,6 @@ export function createStdioMcpRuntime(
   ]);
   const activityTracker = new ActivityTracker({
     async record(event: ActivitySinkEvent): Promise<void> {
-      // Publish starts before slower durable evidence so updater quiet-time
-      // cannot overlap a newly accepted remote call. Publish completion last.
       await composeActivitySinks(event.phase === 'started'
         ? [sharedActivitySink, durableActivitySink]
         : [durableActivitySink, sharedActivitySink]).record(event);
@@ -221,6 +220,25 @@ export function createStdioMcpRuntime(
     codex: codexService,
   };
 
+  const activeWorkspaceScopeProvider = async (): Promise<WorkspaceScope> => ({
+    workspaceId: workspace.id,
+    rootPath: workspace.realRootPath,
+  });
+  const activeWorkspaceScopesProvider = async (): Promise<readonly WorkspaceScope[]> => {
+    if (options.strictAllowedRoots === undefined) return [await activeWorkspaceScopeProvider()];
+    const listed = await workspaceRepository.list();
+    const byRoot = new Map(
+      listed.map((entry) => [normalizeWorkspaceRoot(entry.realRootPath).toLowerCase(), entry] as const),
+    );
+    const scopes: WorkspaceScope[] = [];
+    for (const root of options.strictAllowedRoots) {
+      const entry = byRoot.get(normalizeWorkspaceRoot(root).toLowerCase());
+      if (entry !== undefined) scopes.push({ workspaceId: entry.id, rootPath: entry.realRootPath });
+    }
+    if (scopes.length === 0) scopes.push(await activeWorkspaceScopeProvider());
+    return scopes;
+  };
+
   return {
     services,
     actor,
@@ -230,7 +248,8 @@ export function createStdioMcpRuntime(
     profileProvider,
     allowAiDeleteProvider,
     destructivePolicyProvider,
-    activeWorkspaceScopeProvider: async (): Promise<WorkspaceScope> => ({ workspaceId: workspace.id, rootPath: workspace.realRootPath }),
+    activeWorkspaceScopeProvider,
+    activeWorkspaceScopesProvider,
     codexToolsEnabled: parseBooleanSetting(settingsRepository.get(USER_SETTING_KEYS.codexToolsEnabled), DEFAULT_CODEX_TOOLS_ENABLED),
     close: async (): Promise<void> => {
       await (await sharedActivityLease)?.close();
@@ -330,80 +349,55 @@ function createStdioCapabilityService(
     inputEvent: new WindowsNativeCapabilityBackend('input_event', windowsBridge),
     vision: visionBackend,
     window: new WindowsNativeCapabilityBackend('window', windowsBridge),
-    health,
     systemInfo: new WindowsNativeCapabilityBackend('system_info', windowsBridge),
     notification: new WindowsNativeCapabilityBackend('notification', windowsBridge),
     fileDialog: new WindowsNativeCapabilityBackend('file_dialog', windowsBridge),
     clipboard: new WindowsNativeCapabilityBackend('clipboard', windowsBridge),
+    audio: new WindowsNativeCapabilityBackend('audio', windowsBridge),
+    screenRecord: new WindowsNativeCapabilityBackend('screen_record', windowsBridge),
+    office: new WindowsNativeCapabilityBackend('office', windowsBridge, nativeOptions),
+    health,
     webFetch: new WebFetchCapabilityBackend(),
-    audio: new WindowsNativeCapabilityBackend('audio', windowsBridge, process.platform, nativeOptions),
-    screenRecord: new WindowsNativeCapabilityBackend('screen_record', windowsBridge, process.platform, nativeOptions),
-    office: new WindowsNativeCapabilityBackend('office', windowsBridge, process.platform, nativeOptions),
-    scheduler: new SchedulerCapabilityBackend(),
+    scheduler: new SchedulerCapabilityBackend({ allowedRootsProvider: capabilityRootsProvider, unrestricted }),
     wslExec: wslBackend,
     wslFs: wslFsBackend,
   });
 }
 
-function readCapabilityRoots(value: string | undefined): readonly string[] {
-  if (value === undefined || value.trim().length === 0) return [];
-  return value.split(';').map((root) => root.trim()).filter((root) => root.length > 0).map((root) => path.resolve(root));
+function readCapabilityRoots(raw: string | undefined): readonly string[] {
+  if (raw === undefined || raw.trim().length === 0) return [];
+  return raw.split(';').map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
 function capabilityBridgeScriptPath(): string {
-  const configured = process.env.LNWJUD_CAPABILITY_BRIDGE_SCRIPT;
-  if (configured !== undefined && configured.trim().length > 0) return path.resolve(configured);
-
-  const scriptDir = resolveScriptDirectory();
-  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  const override = process.env.LNWJUD_CAPABILITY_BRIDGE_SCRIPT;
+  if (override !== undefined && override.trim().length > 0) return path.resolve(override);
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const packaged = path.resolve(process.execPath, '..', 'resources', 'windows-capability-bridge.ps1');
   const candidates = [
-    scriptDir === undefined ? undefined : path.join(scriptDir, 'windows-capability-bridge.ps1'),
-    scriptDir === undefined ? undefined : path.join(scriptDir, 'resources', 'windows-capability-bridge.ps1'),
-    path.resolve(process.cwd(), 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1'),
-    path.resolve(process.cwd(), '..', '..', 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1'),
-    resourcesPath === undefined ? undefined : path.join(resourcesPath, 'windows-capability-bridge.ps1'),
-    path.join(path.dirname(process.execPath), 'windows-capability-bridge.ps1'),
-    path.join(path.dirname(process.execPath), 'resources', 'windows-capability-bridge.ps1'),
-  ].filter((candidate): candidate is string => candidate !== undefined);
-  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+    path.resolve(here, '..', '..', '..', 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1'),
+    path.resolve(here, '..', '..', '..', '..', 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1'),
+    packaged,
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return candidates[0]!;
 }
 
-function resolveScriptDirectory(): string | undefined {
-  const arg1 = process.argv[1];
-  if (typeof arg1 === 'string' && arg1.trim().length > 0) {
-    try {
-      return path.dirname(path.resolve(arg1));
-    } catch {
-      // ignore
-    }
-  }
-  try {
-    const metaUrl = import.meta.url;
-    if (typeof metaUrl === 'string' && metaUrl.length > 0) {
-      return path.dirname(fileURLToPath(metaUrl));
-    }
-  } catch {
-    // Bundled CJS may leave import.meta.url empty.
-  }
-  return undefined;
-}
-
-function capabilityBridgeExpectedSha256(): string {
-  const configuredScript = process.env.LNWJUD_CAPABILITY_BRIDGE_SCRIPT;
-  if (configuredScript === undefined || configuredScript.trim().length === 0) return WINDOWS_CAPABILITY_BRIDGE_SHA256;
-  const configuredHash = process.env.LNWJUD_CAPABILITY_BRIDGE_SHA256?.trim().toLowerCase();
-  return configuredHash !== undefined && /^[0-9a-f]{64}$/.test(configuredHash) ? configuredHash : 'missing';
+function capabilityBridgeExpectedSha256(): string | undefined {
+  const overridePath = process.env.LNWJUD_CAPABILITY_BRIDGE_SCRIPT;
+  if (overridePath !== undefined && overridePath.trim().length > 0) return undefined;
+  return WINDOWS_CAPABILITY_BRIDGE_SHA256 || undefined;
 }
 
 function windowsOcrHelperPath(): string | undefined {
-  const configured = process.env.LNWJUD_WINDOWS_OCR_HELPER;
-  if (configured !== undefined && configured.trim().length > 0) return path.resolve(configured);
-  const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
-  const scriptDir = resolveScriptDirectory();
+  const override = process.env.LNWJUD_WINDOWS_OCR_HELPER;
+  if (override !== undefined && override.trim().length > 0) return path.resolve(override);
+  const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    scriptDir === undefined ? undefined : path.join(scriptDir, 'native', 'windows-ocr', 'lnwjud-windows-ocr.exe'),
-    resourcesPath === undefined ? undefined : path.join(resourcesPath, 'windows-ocr', 'lnwjud-windows-ocr.exe'),
-    path.join(path.dirname(process.execPath), 'windows-ocr', 'lnwjud-windows-ocr.exe'),
-  ].filter((candidate): candidate is string => candidate !== undefined);
+    path.resolve(here, '..', '..', '..', '..', 'native', 'windows-ocr', 'bin', 'Release', 'net10.0-windows10.0.22621.0', 'win-x64', 'publish', 'lnwjud-windows-ocr.exe'),
+    path.resolve(process.execPath, '..', 'resources', 'windows-ocr', 'lnwjud-windows-ocr.exe'),
+  ];
   return candidates.find((candidate) => existsSync(candidate));
 }
