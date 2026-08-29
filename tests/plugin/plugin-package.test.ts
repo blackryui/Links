@@ -27,6 +27,10 @@ interface PluginManifest {
     composerIcon?: unknown;
     logo?: unknown;
     logoDark?: unknown;
+    websiteURL?: unknown;
+    privacyPolicyURL?: unknown;
+    termsOfServiceURL?: unknown;
+    defaultPrompt?: unknown;
   };
 }
 
@@ -75,7 +79,15 @@ async function createValidFixture(): Promise<string> {
     skills: './skills/',
     interface: {
       displayName: 'lnwjud',
+      shortDescription: 'fixture',
+      longDescription: 'fixture',
+      developerName: 'lnwjud project',
+      category: 'Developer Tools',
       capabilities: ['Interactive', 'Read', 'Write'],
+      websiteURL: 'https://github.com/blackryui/Links',
+      privacyPolicyURL: 'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
+      termsOfServiceURL: 'https://docs.github.com/en/site-policy/github-terms/github-terms-of-service',
+      defaultPrompt: ['Use lnwjud for this fixture.'],
       composerIcon: './assets/icon.png',
       logo: './assets/icon.png',
       logoDark: './assets/icon.png',
@@ -114,6 +126,19 @@ describe('ChatGPT plugin package', () => {
     expect(manifest.version).toBe(rootPackage.version);
     expect(manifest.skills).toBe('./skills/');
     expect(manifest.interface?.capabilities).toEqual(expect.arrayContaining(['Interactive', 'Read', 'Write']));
+
+    for (const urlField of ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL'] as const) {
+      const url = manifest.interface?.[urlField];
+      expect(typeof url).toBe('string');
+      expect(String(url).startsWith('https://')).toBe(true);
+    }
+
+    const defaultPrompt = manifest.interface?.defaultPrompt;
+    expect(Array.isArray(defaultPrompt)).toBe(true);
+    if (Array.isArray(defaultPrompt)) {
+      expect(defaultPrompt.length).toBeLessThanOrEqual(3);
+      expect(defaultPrompt.every((prompt) => typeof prompt === 'string' && prompt.length <= 128)).toBe(true);
+    }
 
     for (const iconField of ['composerIcon', 'logo', 'logoDark'] as const) {
       const iconPath = manifest.interface?.[iconField];
@@ -155,6 +180,24 @@ describe('ChatGPT plugin package', () => {
       const result = await runValidator(root);
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('version');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects missing required interface metadata', async () => {
+    const root = await createValidFixture();
+    try {
+      const manifestPath = path.join(root, '.codex-plugin', 'plugin.json');
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+        interface?: Record<string, unknown>;
+      };
+      if (manifest.interface) delete manifest.interface.websiteURL;
+      await writeJson(manifestPath, manifest);
+
+      const result = await runValidator(root);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain('websiteURL');
     } finally {
       await rm(root, { recursive: true, force: true });
     }
