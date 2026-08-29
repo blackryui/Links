@@ -31,9 +31,9 @@
     },
     {
       "id": "workspace-project",
-      "classification": "shared",
-      "evidence": ["apps/cli/src/runtime/stdio-mcp-runtime.ts", "apps/cli/src/runtime/strict-workspace-repository.ts", "packages/application/src/project-service.ts", "packages/application/src/workspace-index.ts"],
-      "tests": ["apps/cli/src/runtime/stdio-mcp-runtime.test.ts", "apps/cli/src/runtime/strict-workspace-repository.test.ts", "tests/integration/eco-headless-mcp-flow.test.ts"]
+      "classification": "headless-adapter",
+      "evidence": ["apps/cli/src/runtime/stdio-mcp-runtime.ts", "apps/cli/src/runtime/strict-workspace-repository.ts", "apps/cli/src/runtime/headless-mcp-bootstrap.ts", "packages/application/src/project-service.ts", "packages/application/src/workspace-index.ts"],
+      "tests": ["apps/cli/src/runtime/stdio-mcp-runtime.test.ts", "apps/cli/src/runtime/strict-workspace-repository.test.ts", "apps/cli/tests/eco-headless-entrypoint.test.ts", "tests/integration/eco-headless-mcp-flow.test.ts"]
     },
     {
       "id": "files-checkpoints-recovery",
