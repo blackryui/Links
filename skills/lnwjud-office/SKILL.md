@@ -1,6 +1,6 @@
 ---
 name: lnwjud-office
-description: Use for Microsoft Office and local workbook/document actions exposed by lnwjud, including inspection, controlled edits, exports, and document-oriented automation on the user's Windows machine.
+description: Use when Microsoft Office or local workbook/document work should run through lnwjud, including inspection, controlled edits, exports, and document-oriented automation on the user's Windows machine.
 ---
 
 # lnwjud Office
