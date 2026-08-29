@@ -18,12 +18,7 @@ const requiredSkills = [
 ] as const;
 
 async function exists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
+  try { await access(filePath); return true; } catch { return false; }
 }
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
@@ -52,15 +47,15 @@ async function createValidFixture(): Promise<string> {
   await writeJson(path.join(root, '.codex-plugin', 'plugin.json'), {
     name: 'eco',
     version: '4.13.0',
-    description: 'ECO fixture',
+    description: 'ECO headless MCP fixture',
     author: { name: 'lnwjud project' },
     repository: 'https://github.com/blackryui/Links',
     license: 'MIT',
     skills: './skills/',
     interface: {
       displayName: 'ECO',
-      shortDescription: 'ECO fixture',
-      longDescription: 'ECO fixture over lnwjud runtime',
+      shortDescription: 'ECO headless fixture',
+      longDescription: 'ECO headless stdio MCP fixture over the shared lnwjud runtime.',
       developerName: 'ECO',
       category: 'Developer Tools',
       capabilities: ['Interactive', 'Read', 'Write'],
@@ -80,14 +75,22 @@ async function createValidFixture(): Promise<string> {
     await mkdir(path.dirname(skillPath), { recursive: true });
     await writeFile(skillPath, `---\nname: ${skill}\ndescription: Use when testing ECO routing.\n---\n\n# ${skill}\n`, 'utf8');
   }
+  await mkdir(path.join(root, 'docs'), { recursive: true });
+  await writeFile(
+    path.join(root, 'docs', 'chatgpt-plugin.md'),
+    '# ECO ChatGPT Web Plugin Setup\n\nECO uses Secure MCP Tunnel to reach eco-mcp stdio with --strict-roots and Codex support.\n',
+    'utf8',
+  );
+  await writeFile(path.join(root, 'docs', 'eco-headless.md'), '# ECO Headless\n\nHeadless runtime fixture.\n', 'utf8');
+  await writeFile(path.join(root, 'docs', 'eco-codex.md'), '# ECO with Codex\n\nCodex fixture.\n', 'utf8');
   return root;
 }
 
 describe('ChatGPT plugin package', () => {
   it('declares a version-synchronized ECO manifest', async () => {
-    const manifest = JSON.parse(
-      await readFile(path.join(repositoryRoot, '.codex-plugin', 'plugin.json'), 'utf8'),
-    ) as { name?: unknown; version?: unknown; skills?: unknown; interface?: Record<string, unknown> };
+    const manifest = JSON.parse(await readFile(path.join(repositoryRoot, '.codex-plugin', 'plugin.json'), 'utf8')) as {
+      name?: unknown; version?: unknown; skills?: unknown; interface?: Record<string, unknown>;
+    };
     const rootPackage = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8')) as { version?: unknown };
 
     expect(manifest.name).toBe('eco');
@@ -95,7 +98,6 @@ describe('ChatGPT plugin package', () => {
     expect(manifest.skills).toBe('./skills/');
     expect(manifest.interface?.displayName).toBe('ECO');
     expect(manifest.interface?.capabilities).toEqual(expect.arrayContaining(['Interactive', 'Read', 'Write']));
-
     for (const urlField of ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL']) {
       expect(String(manifest.interface?.[urlField]).startsWith('https://')).toBe(true);
     }
@@ -112,9 +114,7 @@ describe('ChatGPT plugin package', () => {
   });
 
   it('keeps the six internal lnwjud routing skills', async () => {
-    for (const skill of requiredSkills) {
-      expect(await exists(path.join(repositoryRoot, 'skills', skill, 'SKILL.md'))).toBe(true);
-    }
+    for (const skill of requiredSkills) expect(await exists(path.join(repositoryRoot, 'skills', skill, 'SKILL.md'))).toBe(true);
   });
 
   it('does not commit a workspace-specific app binding before a verified connector exists', async () => {
@@ -137,9 +137,7 @@ describe('ChatGPT plugin package', () => {
       const result = await runValidator(root);
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('version');
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it('rejects wrong ECO identity', async () => {
@@ -154,9 +152,7 @@ describe('ChatGPT plugin package', () => {
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('eco');
       expect(result.stderr).toContain('ECO');
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it('rejects missing required interface metadata', async () => {
@@ -169,9 +165,7 @@ describe('ChatGPT plugin package', () => {
       const result = await runValidator(root);
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('websiteURL');
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it('rejects placeholder app connector identifiers', async () => {
@@ -181,9 +175,7 @@ describe('ChatGPT plugin package', () => {
       const result = await runValidator(root);
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('placeholder');
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it('rejects secret-like credentials in plugin skill files', async () => {
@@ -197,9 +189,7 @@ describe('ChatGPT plugin package', () => {
       const result = await runValidator(root);
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain('secret-like');
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 
   it('keeps the plugin manifest in the repository version synchronizer', async () => {
@@ -208,10 +198,11 @@ describe('ChatGPT plugin package', () => {
     expect(versionScript).toContain('updatePackageJson(pluginManifestPath, version)');
   });
 
-  it('documents ECO tunnel setup and app-binding lifecycle', async () => {
+  it('documents ECO headless tunnel, Codex, and app-binding lifecycle without permanent tool-count proof', async () => {
     const doc = await readFile(path.join(repositoryRoot, 'docs', 'chatgpt-plugin.md'), 'utf8');
-    for (const concept of ['ECO', 'Secure MCP Tunnel', '221', '227', 'codex_*', '.app.json', 'Refresh connector']) {
+    for (const concept of ['ECO', 'Secure MCP Tunnel', 'eco-mcp stdio', '--strict-roots', 'Codex', '.app.json', 'Refresh connector']) {
       expect(doc).toContain(concept);
     }
+    expect(doc).not.toMatch(/\b221\b|\b227\b/);
   });
 });
