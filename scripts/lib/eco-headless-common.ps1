@@ -25,11 +25,25 @@ function Get-EcoTunnelMutexName {
 function Get-EcoProcessIdentity([int]$ProcessId) {
   try {
     $process = Get-Process -Id $ProcessId -ErrorAction Stop
-    return [pscustomobject]@{
-      pid = $process.Id
-      startedAt = $process.StartTime.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [Globalization.CultureInfo]::InvariantCulture)
+  } catch {
+    return [pscustomobject]@{ state = 'gone'; pid = $ProcessId }
+  }
+
+  try {
+    $startedAt = $process.StartTime.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ', [Globalization.CultureInfo]::InvariantCulture)
+    $executablePath = [string]$process.Path
+    if ([string]::IsNullOrWhiteSpace($executablePath)) {
+      return [pscustomobject]@{ state = 'unverifiable'; pid = $ProcessId; reason = 'process_path_unavailable' }
     }
-  } catch { return $null }
+    return [pscustomobject]@{
+      state = 'live'
+      pid = $process.Id
+      startedAt = $startedAt
+      path = [IO.Path]::GetFullPath($executablePath)
+    }
+  } catch {
+    return [pscustomobject]@{ state = 'unverifiable'; pid = $ProcessId; reason = 'process_identity_probe_failed' }
+  }
 }
 
 function Get-EcoOwnerRecord {
@@ -37,34 +51,131 @@ function Get-EcoOwnerRecord {
   if (-not (Test-Path -LiteralPath $ownerPath -PathType Leaf)) { return $null }
   try {
     $owner = Get-Content -LiteralPath $ownerPath -Raw | ConvertFrom-Json
-    if ($null -eq $owner.pid -or $null -eq $owner.startedAt) { return $null }
+    if ([int]$owner.version -ne 2) { return $null }
+    if ($null -eq $owner.pid -or [string]::IsNullOrWhiteSpace([string]$owner.startedAt)) { return $null }
+    if ([string]::IsNullOrWhiteSpace([string]$owner.tunnelClientPath)) { return $null }
+    if ([string]::IsNullOrWhiteSpace([string]$owner.profileDir)) { return $null }
     return $owner
   } catch { return $null }
+}
+
+function Test-EcoOwnerSame($Left, $Right) {
+  if ($null -eq $Left -or $null -eq $Right) { return $false }
+  return [int]$Left.pid -eq [int]$Right.pid `
+    -and ([string]$Left.startedAt) -ceq ([string]$Right.startedAt)
 }
 
 function Test-EcoOwnerLive($Owner) {
   if ($null -eq $Owner) { return $false }
   $identity = Get-EcoProcessIdentity ([int]$Owner.pid)
-  return $null -ne $identity -and ([string]$identity.startedAt) -ceq ([string]$Owner.startedAt)
+  return $identity.state -eq 'live' -and ([string]$identity.startedAt) -ceq ([string]$Owner.startedAt)
 }
 
-function Write-EcoOwnerRecord([int]$ProcessId) {
-  $identity = Get-EcoProcessIdentity $ProcessId
-  if ($null -eq $identity) { throw 'Could not resolve ECO tunnel worker process identity.' }
+function Write-EcoOwnerPayload($Record) {
   $ownerPath = Get-EcoOwnerPath
-  $tempPath = "$ownerPath.$ProcessId.$([Guid]::NewGuid().ToString('N')).tmp"
-  $record = [pscustomobject][ordered]@{ version = 1; pid = $identity.pid; startedAt = $identity.startedAt }
-  $record | ConvertTo-Json -Compress | Set-Content -LiteralPath $tempPath -Encoding UTF8
+  $tempPath = "$ownerPath.$($Record.pid).$([Guid]::NewGuid().ToString('N')).tmp"
+  $Record | ConvertTo-Json -Compress | Set-Content -LiteralPath $tempPath -Encoding UTF8
   Move-Item -LiteralPath $tempPath -Destination $ownerPath -Force
-  return $record
+  return $Record
+}
+
+function Write-EcoOwnerRecord([int]$ProcessId, [string]$TunnelClientPath, [string]$ProfileDir) {
+  $identity = Get-EcoProcessIdentity $ProcessId
+  if ($identity.state -ne 'live') { throw 'Could not resolve ECO tunnel worker process identity.' }
+  $record = [pscustomobject][ordered]@{
+    version = 2
+    pid = $identity.pid
+    startedAt = $identity.startedAt
+    tunnelClientPath = [IO.Path]::GetFullPath($TunnelClientPath)
+    profileDir = [IO.Path]::GetFullPath($ProfileDir)
+    childPid = $null
+    childStartedAt = $null
+  }
+  return Write-EcoOwnerPayload $record
+}
+
+function Set-EcoOwnerChild($Owner, [int]$ChildPid) {
+  $current = Get-EcoOwnerRecord
+  if (-not (Test-EcoOwnerSame $current $Owner)) { throw 'ECO tunnel owner changed before child publication.' }
+
+  $identity = Get-EcoProcessIdentity $ChildPid
+  if ($identity.state -ne 'live') { throw 'Could not verify ECO tunnel-client child process identity.' }
+  $expectedPath = [IO.Path]::GetFullPath([string]$current.tunnelClientPath)
+  if (-not [StringComparer]::OrdinalIgnoreCase.Equals([string]$identity.path, $expectedPath)) {
+    throw "ECO child executable mismatch: expected=$expectedPath actual=$($identity.path)"
+  }
+
+  $record = [pscustomobject][ordered]@{
+    version = 2
+    pid = [int]$current.pid
+    startedAt = [string]$current.startedAt
+    tunnelClientPath = $expectedPath
+    profileDir = [IO.Path]::GetFullPath([string]$current.profileDir)
+    childPid = [int]$identity.pid
+    childStartedAt = [string]$identity.startedAt
+  }
+  return Write-EcoOwnerPayload $record
+}
+
+function Clear-EcoOwnerChild($Owner) {
+  $current = Get-EcoOwnerRecord
+  if (-not (Test-EcoOwnerSame $current $Owner)) { throw 'ECO tunnel owner changed before child cleanup.' }
+  $record = [pscustomobject][ordered]@{
+    version = 2
+    pid = [int]$current.pid
+    startedAt = [string]$current.startedAt
+    tunnelClientPath = [IO.Path]::GetFullPath([string]$current.tunnelClientPath)
+    profileDir = [IO.Path]::GetFullPath([string]$current.profileDir)
+    childPid = $null
+    childStartedAt = $null
+  }
+  return Write-EcoOwnerPayload $record
+}
+
+function Get-EcoOwnedChildState($Owner) {
+  if ($null -eq $Owner -or $null -eq $Owner.childPid -or [string]::IsNullOrWhiteSpace([string]$Owner.childStartedAt)) {
+    return 'none'
+  }
+
+  $identity = Get-EcoProcessIdentity ([int]$Owner.childPid)
+  if ($identity.state -eq 'gone') { return 'gone' }
+  if ($identity.state -ne 'live') { return 'unverifiable' }
+  if (([string]$identity.startedAt) -cne ([string]$Owner.childStartedAt)) { return 'mismatch' }
+
+  try {
+    $expectedPath = [IO.Path]::GetFullPath([string]$Owner.tunnelClientPath)
+  } catch { return 'unverifiable' }
+  if (-not [StringComparer]::OrdinalIgnoreCase.Equals([string]$identity.path, $expectedPath)) { return 'mismatch' }
+  return 'owned'
+}
+
+function Test-EcoOwnedChildLive($Owner) {
+  return (Get-EcoOwnedChildState $Owner) -eq 'owned'
+}
+
+function Stop-EcoOwnedChild($Owner, [int]$TimeoutSeconds = 8) {
+  $state = Get-EcoOwnedChildState $Owner
+  if ($state -in @('none', 'gone')) { return $true }
+  if ($state -ne 'owned') { throw "ECO tunnel-client child ownership is $state; refusing to kill an unverified process." }
+
+  $childPid = [int]$Owner.childPid
+  $childStartedAt = [string]$Owner.childStartedAt
+  Stop-Process -Id $childPid -ErrorAction Stop
+  $deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
+  do {
+    Start-Sleep -Milliseconds 200
+    $identity = Get-EcoProcessIdentity $childPid
+    if ($identity.state -eq 'gone') { return $true }
+    if ($identity.state -eq 'live' -and ([string]$identity.startedAt) -cne $childStartedAt) { return $true }
+    if ($identity.state -eq 'unverifiable') { throw 'ECO tunnel-client child became unverifiable while stopping.' }
+  } while ((Get-Date) -lt $deadline)
+  throw "ECO tunnel-client child PID $childPid did not stop within $TimeoutSeconds second(s)."
 }
 
 function Remove-EcoOwnerRecordIfCurrent($Owner) {
   $current = Get-EcoOwnerRecord
-  if ($null -eq $current -or $null -eq $Owner) { return }
-  if ([int]$current.pid -eq [int]$Owner.pid -and ([string]$current.startedAt) -ceq ([string]$Owner.startedAt)) {
-    Remove-Item -LiteralPath (Get-EcoOwnerPath) -Force -ErrorAction SilentlyContinue
-  }
+  if (-not (Test-EcoOwnerSame $current $Owner)) { return }
+  Remove-Item -LiteralPath (Get-EcoOwnerPath) -Force -ErrorAction SilentlyContinue
 }
 
 function Resolve-EcoTunnelClientPath([string]$RequestedPath) {
