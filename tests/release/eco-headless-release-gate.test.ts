@@ -24,18 +24,22 @@ describe('ECO Headless release gate', () => {
 
     expect(docs).toContain('ChatGPT Web -> OpenAI Secure MCP Tunnel -> tunnel-client -> eco-mcp stdio');
     expect(docs).toContain('Codex local');
-    expect(docs).toContain('Desktop/Electron process is required');
+    expect(docs).toContain('No `lnwjud.exe` or Electron process is required');
     expect(docs).toContain('Release parity additionally requires');
   });
 
-  it('preserves a single shared ToolRegistry instead of ECO-owned tool schemas', async () => {
+  it('preserves one shared ToolRegistry and a self-contained Windows stdio package', async () => {
     const build = await readFile(path.join(root, 'scripts', 'build-eco-headless.mjs'), 'utf8');
     const entry = await readFile(path.join(root, 'apps', 'cli', 'src', 'bin', 'mcp-stdio.ts'), 'utf8');
     const bootstrap = await readFile(path.join(root, 'apps', 'cli', 'src', 'runtime', 'headless-mcp-bootstrap.ts'), 'utf8');
 
     expect(entry).toContain('runHeadlessMcp');
     expect(bootstrap).toContain('createStdioMcpRuntime');
-    expect(build).toContain('apps/cli/src/bin/mcp-stdio.ts');
+    expect(bootstrap).toContain('effectiveCodexToolsEnabled');
+    expect(build).toContain("'../cli/src/bin/mcp-stdio.ts'");
+    expect(build).toContain("'eco-node.exe'");
+    expect(build).toContain("'prepare-ripgrep.ps1'");
+    expect(build).toContain("'windows-capability-bridge.ps1'");
     expect(build).not.toContain('eco-tool-registry');
   });
 });
