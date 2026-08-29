@@ -43,13 +43,20 @@ if (Test-Path -LiteralPath $logPath -PathType Leaf) {
 }
 
 $allowedRoots = if ($null -eq $config) { @() } else { @($config.allowedRoots) }
+$nodePresent = $null -ne $config -and -not [string]::IsNullOrWhiteSpace([string]$config.nodePath) -and (Test-Path -LiteralPath ([string]$config.nodePath) -PathType Leaf)
+$mcpBundlePresent = $null -ne $config -and -not [string]::IsNullOrWhiteSpace([string]$config.bundlePath) -and (Test-Path -LiteralPath ([string]$config.bundlePath) -PathType Leaf)
+$launcherPresent = $null -ne $config -and -not [string]::IsNullOrWhiteSpace([string]$config.launcherPath) -and (Test-Path -LiteralPath ([string]$config.launcherPath) -PathType Leaf)
 $status = [pscustomobject][ordered]@{
   profile = $script:EcoProfileName
   configured = ($null -ne $config)
   profileDirectory = $profileDir
   secretPresent = $secretPresent
-  bundlePresent = ($null -ne $config -and (Test-Path -LiteralPath ([string]$config.launcherPath) -PathType Leaf))
+  nodePresent = $nodePresent
+  mcpBundlePresent = $mcpBundlePresent
+  bundlePresent = ($nodePresent -and $mcpBundlePresent)
+  launcherPresent = $launcherPresent
   tunnelClientPresent = ($null -ne $config -and (Test-Path -LiteralPath ([string]$config.tunnelClientPath) -PathType Leaf))
+  trustedHostApproval = ($null -ne $config -and $config.trustedHostApproval -eq $true)
   permissionProfile = if ($null -eq $config) { $null } else { [string]$config.permissionProfile }
   allowedRoots = $allowedRoots
   ownerPid = if ($null -eq $owner) { $null } else { $owner.ownerPid }
@@ -66,17 +73,20 @@ if ($Json) {
   return
 }
 
-Write-Host ("ECO profile:     {0}" -f $status.profile)
-Write-Host ("Configured:      {0}" -f $status.configured)
-Write-Host ("Runtime key:     {0}" -f $(if ($status.secretPresent) { 'present (encrypted)' } else { 'missing' }))
-Write-Host ("Bundle:          {0}" -f $(if ($status.bundlePresent) { 'present' } else { 'missing' }))
-Write-Host ("Tunnel client:   {0}" -f $(if ($status.tunnelClientPresent) { 'present' } else { 'missing' }))
-Write-Host ("Owner live:      {0}" -f $status.ownerLive)
-Write-Host ("Tunnel live:     {0}" -f $status.tunnelLive)
-Write-Host ("Permission:      {0}" -f $status.permissionProfile)
+Write-Host ("ECO profile:       {0}" -f $status.profile)
+Write-Host ("Configured:        {0}" -f $status.configured)
+Write-Host ("Runtime key:       {0}" -f $(if ($status.secretPresent) { 'present (encrypted)' } else { 'missing' }))
+Write-Host ("Private Node:      {0}" -f $(if ($status.nodePresent) { 'present' } else { 'missing' }))
+Write-Host ("MCP bundle:        {0}" -f $(if ($status.mcpBundlePresent) { 'present' } else { 'missing' }))
+Write-Host ("Convenience .cmd:  {0}" -f $(if ($status.launcherPresent) { 'present' } else { 'missing' }))
+Write-Host ("Tunnel client:     {0}" -f $(if ($status.tunnelClientPresent) { 'present' } else { 'missing' }))
+Write-Host ("Trusted host gate: {0}" -f $status.trustedHostApproval)
+Write-Host ("Owner live:        {0}" -f $status.ownerLive)
+Write-Host ("Tunnel live:       {0}" -f $status.tunnelLive)
+Write-Host ("Permission:        {0}" -f $status.permissionProfile)
 Write-Host 'Allowed roots:'
 if ($status.allowedRoots.Count -eq 0) { Write-Host '  (none configured)' }
 else { $status.allowedRoots | ForEach-Object { Write-Host ("  - {0}" -f $_) } }
 if (-not [string]::IsNullOrWhiteSpace($status.lastDiagnostic)) {
-  Write-Host ("Last diagnostic: {0}" -f $status.lastDiagnostic)
+  Write-Host ("Last diagnostic:   {0}" -f $status.lastDiagnostic)
 }
