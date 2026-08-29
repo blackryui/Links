@@ -18,7 +18,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string[]]$AllowedRoot,
 
-  [ValidateSet('read_only', 'safe_edit', 'full', 'custom')]
+  [ValidateSet('safe', 'balanced', 'full', 'custom')]
   [string]$PermissionProfile = 'full',
 
   [string]$TunnelClientPath,
