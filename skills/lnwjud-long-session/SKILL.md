@@ -1,11 +1,11 @@
 ---
 name: lnwjud-long-session
-description: Use when a lnwjud goal may exceed one ChatGPT run and must continue safely through durable checkpoints plus one-time native ChatGPT Scheduled Task successors without overlapping local mutations.
+description: Use when an ECO durable goal may exceed one ChatGPT run and must continue safely through shared goal/checkpoint state plus one-time native ChatGPT Scheduled Task successors without overlapping local mutations.
 ---
 
-# lnwjud Long Session
+# ECO Long Session
 
-Use lnwjud durable goal state for work continuity and native ChatGPT Scheduled Tasks only for future wakes. Preserve the safety invariants of `.agents/skills/lnwjud-scheduled-continuation/SKILL.md`.
+Use the shared lnwjud-compatible durable goal state through ECO Headless for work continuity and native ChatGPT Scheduled Tasks only for future wakes. Preserve the safety invariants of `.agents/skills/lnwjud-scheduled-continuation/SKILL.md`.
 
 ## Initial or manually resumed run
 
@@ -13,12 +13,12 @@ Use lnwjud durable goal state for work continuity and native ChatGPT Scheduled T
 2. Work normally and checkpoint meaningful milestones with `checkpoint_goal`.
 3. Do not schedule a successor at run start.
 4. Only when the host run is genuinely near its handoff boundary and meaningful work remains, call `prepare_scheduled_continuation` once.
-5. Create exactly one native one-time ChatGPT Scheduled Task from the returned request, then record the real creation result with `record_scheduled_continuation_receipt`.
-6. The predecessor may continue only while its lease remains valid and must stop mutation at the handoff deadline.
+5. Create exactly one native one-time ChatGPT Scheduled Task from the returned request, then record the actual host creation result with `record_scheduled_continuation_receipt`.
+6. The predecessor may continue only while its lease remains valid and must stop local mutation at the handoff deadline.
 
 ## Scheduled successor
 
-1. Call `claim_scheduled_continuation` before any local file, Git, process, UI, or other mutation.
+1. Call `claim_scheduled_continuation` before any local file, Git, process, browser, Windows, Office, or other mutation.
 2. `terminal_noop`: stop; the goal is already terminal.
 3. `already_claimed`: stop; another run consumed the continuation.
 4. `busy_blocked`: do not mutate and do not create a polling loop.
@@ -33,7 +33,8 @@ Use lnwjud durable goal state for work continuity and native ChatGPT Scheduled T
 
 ## Hard boundaries
 
-- Never use Windows Task Scheduler, `schtasks.exe`, cron, shell timers, or an undocumented scheduling API as a fallback.
+- Never use Windows Task Scheduler, `schtasks.exe`, cron, shell timers, or an undocumented scheduling API as a fallback for ChatGPT continuation.
 - Never create recurring two-minute retries for continuation.
 - Never allow overlapping mutation leases for the same durable goal/workspace.
 - Execution preference is not proof of cloud/local execution; record only what the host confirms.
+- The absence of a GUI does not weaken goal lease, claim, fencing, strict-root, or mutation-safety rules.
