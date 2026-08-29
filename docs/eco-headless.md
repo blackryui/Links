@@ -24,6 +24,8 @@ Expected distribution:
 ```text
 dist\eco-headless\eco-mcp.cjs
 dist\eco-headless\eco-mcp.cmd
+dist\eco-headless\eco-config.cjs
+dist\eco-headless\eco-config.cmd
 dist\eco-headless\eco-node.exe
 dist\eco-headless\runtime-tools\ripgrep\rg.exe
 dist\eco-headless\windows-capability-bridge.ps1
@@ -33,6 +35,57 @@ dist\eco-headless\PACKAGE.json
 The packaged runtime carries its own private Node 24 runtime and verified ripgrep, matching the operational requirements of the upstream packaged stdio runtime. A system Node or ripgrep installation is not required to run the packaged ECO MCP. The optional Windows OCR helper is included when its upstream build prerequisite is available.
 
 No `lnwjud.exe` or Electron process is required to run ECO.
+
+## Headless runtime configuration
+
+`eco-config.cmd` replaces the runtime-relevant part of Desktop Settings while writing to the same lnwjud-compatible SQLite settings repository.
+
+Show the current stored headless settings:
+
+```text
+dist\eco-headless\eco-config.cmd show
+```
+
+Read, set, or reset one setting:
+
+```text
+dist\eco-headless\eco-config.cmd get permission-profile
+dist\eco-headless\eco-config.cmd set permission-profile balanced
+dist\eco-headless\eco-config.cmd reset permission-profile
+```
+
+Supported settings are deliberately allowlisted:
+
+```text
+permission-profile
+strict-roots
+allowed-roots
+custom-permission
+mcp-call-timeout-ms
+mcp-idle-timeout-ms
+process-timeout-ms
+mcp-poll-wait-seconds
+shell-synchronous-wait-seconds
+capability-roots
+pdf-provider-path
+lsp-commands
+codex-tools-enabled
+destructive-policy
+extensions
+```
+
+Examples:
+
+```text
+dist\eco-headless\eco-config.cmd set mcp-poll-wait-seconds 10
+dist\eco-headless\eco-config.cmd set capability-roots "C:\Work;D:\Shared"
+dist\eco-headless\eco-config.cmd set codex-tools-enabled true
+dist\eco-headless\eco-config.cmd set lsp-commands "{\"typescript\":\"typescript-language-server --stdio\"}"
+```
+
+`show` / `get` report `null` when no stored override exists; in that case the shared lnwjud runtime uses its normal upstream default. Extension MCP environment values are redacted in displayed config. Do not pass API tokens or passwords as normal config command arguments; use provider/tool-specific secure environment mechanisms instead.
+
+Desktop-only settings such as tray behavior, start-minimized, or close behavior are intentionally not part of ECO because their operational purpose disappears when Desktop/Electron is removed.
 
 ## Configure ChatGPT Secure MCP Tunnel
 
@@ -54,7 +107,7 @@ When you intentionally want ChatGPT/ECO to expose the optional six `codex_*` del
 -EnableCodexTools
 ```
 
-This does not change lnwjud's saved default; it adds `--enable-codex-tools` to this ECO MCP profile only.
+This does not change lnwjud's saved default; it adds `--enable-codex-tools` to this ECO MCP profile only. The process-level CLI flag takes precedence for that MCP process; `eco-config.cmd set codex-tools-enabled true|false` controls the stored upstream-compatible default.
 
 The setup script:
 
@@ -120,13 +173,12 @@ See `docs/eco-codex.md`. Codex uses the same `eco-mcp.cmd` stdio entrypoint; ECO
 - the existing lnwjud permission/destructive policy remains active;
 - critical-file, path, Git, recovery and checkpoint protections stay in the shared runtime;
 - optional capabilities remain subject to their Windows/external-binary prerequisites;
-- `codex_*` delegation remains opt-in; explicit ECO enable/disable flags override only the current MCP process catalog.
+- `codex_*` delegation remains opt-in; explicit ECO enable/disable flags override only the current MCP process catalog;
+- headless config rejects unknown keys and invalid/out-of-range values instead of silently creating arbitrary settings.
 
-## State and headless configuration
+## State
 
 ECO preserves the existing lnwjud-compatible local state model. `LNWJUD_DATA_PATH` may be used to select an explicit state directory; otherwise the shared runtime resolves its normal per-user data path. Existing SQLite, audit/activity, checkpoint, recovery, workspace-index, goals and background-task state remain shared with the CLI runtime.
-
-The core launch path already exposes workspace roots, strict-root policy, permission profile and Codex delegation without Desktop. Additional runtime settings that upstream stores in SQLite (for example provider/time-out configuration) are being exposed through a separate ECO headless configuration surface rather than reintroducing Desktop Settings.
 
 ## Verification commands
 
