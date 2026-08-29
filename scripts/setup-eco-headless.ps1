@@ -4,7 +4,8 @@ param(
   [Parameter(Mandatory = $true)][string[]]$AllowedRoot,
   [string]$TunnelClientPath,
   [string]$EcoMcpPath,
-  [switch]$ReplaceRuntimeKey
+  [switch]$ReplaceRuntimeKey,
+  [switch]$EnableCodexTools
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,7 +27,7 @@ if ($resolvedRoots.Count -lt 1) { throw 'At least one explicit allowed root is r
 
 $tunnelClient = Resolve-EcoTunnelClientPath $TunnelClientPath
 $ecoMcp = Resolve-EcoMcpPath $repositoryRoot $EcoMcpPath
-$mcpCommand = New-EcoMcpCommand $ecoMcp $resolvedRoots
+$mcpCommand = New-EcoMcpCommand -EcoMcpPath $ecoMcp -AllowedRoots $resolvedRoots -EnableCodexTools:$EnableCodexTools
 
 if ($ReplaceRuntimeKey -or -not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
   $secureKey = Read-Host 'OpenAI Tunnel runtime API key' -AsSecureString
@@ -57,6 +58,7 @@ try {
   Write-Host "Profile: $profileName"
   Write-Host "Profile directory: $profileDir"
   Write-Host "ECO MCP: $ecoMcp"
+  Write-Host "Codex delegation tools: $(if ($EnableCodexTools) { 'enabled' } else { 'upstream default/stored setting' })"
   Write-Host 'Allowed roots:'
   $resolvedRoots | ForEach-Object { Write-Host "  - $_" }
 }
