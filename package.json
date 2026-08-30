@@ -18,6 +18,7 @@
     "test:eco:parity": "vitest run tests/integration/eco-capability-catalog.test.ts --exclude=.local-artifacts/**",
     "test:eco:packaging": "vitest run tests/packaging/eco-headless-packaging.test.ts tests/packaging/eco-tunnel-profile.test.ts tests/packaging/eco-tunnel-lifecycle.test.ts tests/packaging/eco-local-smoke-harness.test.ts --exclude=.local-artifacts/**",
     "build:eco": "node scripts/build-eco-headless.mjs",
+    "smoke:eco:local": "corepack pnpm@10.15.0 --filter @lnwjud/mcp-server exec node scripts/eco-built-smoke.mjs",
     "test:eco:built-package": "vitest run tests/packaging/eco-built-runtime.test.ts --exclude=.local-artifacts/**",
     "test:plugin": "vitest run tests/plugin/eco-plugin-v4.31.test.ts --exclude=.local-artifacts/**",
     "validate:plugin": "node scripts/validate-chatgpt-plugin.mjs --root .",
