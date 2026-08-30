@@ -16,7 +16,7 @@ describe('ECO headless tunnel lifecycle', () => {
 
     for (const scriptPath of scriptPaths) {
       const source = await readFile(scriptPath, 'utf8');
-      expect(source.startsWith('#Requires -Version 5.1\n'), path.basename(scriptPath)).toBe(true);
+      expect(source, path.basename(scriptPath)).toMatch(/^#Requires -Version 5\.1\r?\n/);
       expect(source, path.basename(scriptPath)).not.toMatch(/^<#Requires/m);
 
       if (process.platform === 'win32') {
