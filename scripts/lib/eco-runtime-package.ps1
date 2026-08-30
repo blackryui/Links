@@ -30,6 +30,14 @@ function Resolve-EcoRuntimePackage {
   }
 }
 
+function ConvertTo-EcoTunnelCommandArgument([string]$Value) {
+  # openai/tunnel-client parseStdioCommandArgv treats backslash as an escape
+  # character even inside double quotes. Escape it once for that parser while
+  # keeping the existing PowerShell argument quoting helper unchanged.
+  $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
+  return '"' + $escaped + '"'
+}
+
 function New-EcoDirectMcpCommand {
   param(
     [Parameter(Mandatory = $true)]$RuntimePackage,
@@ -39,16 +47,16 @@ function New-EcoDirectMcpCommand {
 
   if ($AllowedRoots.Count -lt 1) { throw 'At least one explicit allowed root is required.' }
   $parts = @(
-    (ConvertTo-EcoQuotedArgument ([string]$RuntimePackage.nodePath)),
-    (ConvertTo-EcoQuotedArgument ([string]$RuntimePackage.scriptPath)),
+    (ConvertTo-EcoTunnelCommandArgument ([string]$RuntimePackage.nodePath)),
+    (ConvertTo-EcoTunnelCommandArgument ([string]$RuntimePackage.scriptPath)),
     '--strict-roots'
   )
   foreach ($root in $AllowedRoots) {
     $parts += '--allowed-root'
-    $parts += (ConvertTo-EcoQuotedArgument $root)
+    $parts += (ConvertTo-EcoTunnelCommandArgument $root)
   }
   $parts += '--workspace'
-  $parts += (ConvertTo-EcoQuotedArgument $AllowedRoots[0])
+  $parts += (ConvertTo-EcoTunnelCommandArgument $AllowedRoots[0])
   if ($EnableCodexTools) { $parts += '--enable-codex-tools' }
   return ($parts -join ' ')
 }
