@@ -69,6 +69,7 @@ try {
     Invoke-ReleaseStage 'test:eco:packaging' @('test:eco:packaging')
     Invoke-ReleaseStage 'test:release' @('test:release')
     Invoke-ReleaseStage 'build:eco' @('build:eco')
+    Invoke-ReleaseStage 'smoke:eco:local' @('smoke:eco:local')
     Invoke-ReleaseStage 'test:eco:built-package' @('test:eco:built-package')
     Invoke-ReleaseStage 'test:plugin' @('test:plugin')
     Invoke-ReleaseStage 'validate:plugin' @('validate:plugin')
