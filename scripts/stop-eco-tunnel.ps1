@@ -1,4 +1,4 @@
-<#Requires -Version 5.1
+#Requires -Version 5.1
 param([int]$TimeoutSeconds = 12)
 
 $ErrorActionPreference = 'Stop'
