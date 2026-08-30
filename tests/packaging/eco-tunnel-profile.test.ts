@@ -38,4 +38,13 @@ describe('ECO Secure MCP Tunnel stdio profile', () => {
     expect(common).toContain('eco-tunnel.log');
     expect(common).toContain('eco.tunnel.owner.json');
   });
+
+  it('persists the encrypted runtime key without newline corruption and accepts legacy trailing whitespace', async () => {
+    const setup = await readFile(path.join(root, 'scripts', 'setup-eco-headless.ps1'), 'utf8');
+
+    expect(setup).toContain('[IO.File]::WriteAllText');
+    expect(setup).toContain('[Text.UTF8Encoding]::new($false)');
+    expect(setup).toContain("(Get-Content -LiteralPath $secretPath -Raw).Trim()");
+    expect(setup).not.toContain('ConvertFrom-SecureString | Set-Content');
+  });
 });
