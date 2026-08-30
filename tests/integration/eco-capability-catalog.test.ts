@@ -39,8 +39,18 @@ describe('ECO upstream-derived MCP catalog', () => {
     expect(codexOnly.length).toBeGreaterThan(0);
     expect(codexOnly.every((name) => name.startsWith('codex_'))).toBe(true);
 
-    for (const family of ['file', 'git', 'browser', 'wsl', 'document', 'workbook', 'computer', 'task', 'goal']) {
-      expect(allNames.some((name) => name.includes(family)), `live ToolRegistry is missing representative ${family} capability`).toBe(true);
+    const representativeTools = [
+      'read_file',
+      'git_status',
+      'dom_cdp',
+      'wsl_exec',
+      'office',
+      'computer_use',
+      'run_goal',
+      'codex_task_status',
+    ] as const;
+    for (const name of representativeTools) {
+      expect(allSet.has(name), `live ToolRegistry is missing representative tool ${name}`).toBe(true);
     }
   });
 
