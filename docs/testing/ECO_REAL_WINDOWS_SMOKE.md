@@ -20,17 +20,18 @@ Acceptance: Node must resolve to system Node 24.x. No ECO-owned Node/runtime exe
 
 ## 2. Build + local stdio MCP smoke
 
-From the repository root in PowerShell:
+From the repository root in PowerShell, run the one-command host smoke:
 
 ```powershell
-corepack enable
-corepack prepare pnpm@10.15.0 --activate
-corepack pnpm@10.15.0 install --frozen-lockfile
-corepack pnpm@10.15.0 build:eco
-corepack pnpm@10.15.0 smoke:eco:local -- --root "C:\PATH\TO\REAL\PROJECT"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-eco-real-smoke.ps1 `
+  -Root "C:\PATH\TO\REAL\PROJECT"
 ```
 
-Save the JSON output from `smoke:eco:local` in the acceptance evidence.
+The runner validates system Node 24, enables/prepares Corepack, performs the frozen install, builds ECO, runs the official MCP v2 local stdio smoke, and writes the resulting JSON evidence to:
+
+```text
+.local-artifacts\eco-real-smoke\local-stdio.json
+```
 
 Required evidence:
 
