@@ -1,10 +1,40 @@
 import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const root = path.resolve(import.meta.dirname, '..', '..');
 
 describe('ECO headless tunnel lifecycle', () => {
+  it('keeps all operator PowerShell entrypoints parseable with a real #Requires directive', async () => {
+    const scriptPaths = [
+      path.join(root, 'scripts', 'setup-eco-headless.ps1'),
+      path.join(root, 'scripts', 'start-eco-tunnel.ps1'),
+      path.join(root, 'scripts', 'status-eco-tunnel.ps1'),
+      path.join(root, 'scripts', 'stop-eco-tunnel.ps1'),
+    ];
+
+    for (const scriptPath of scriptPaths) {
+      const source = await readFile(scriptPath, 'utf8');
+      expect(source.startsWith('#Requires -Version 5.1\n'), path.basename(scriptPath)).toBe(true);
+      expect(source, path.basename(scriptPath)).not.toMatch(/^<#Requires/m);
+
+      if (process.platform === 'win32') {
+        const escapedPath = scriptPath.replaceAll("'", "''");
+        const parser = [
+          '$tokens = $null',
+          '$errors = $null',
+          `[System.Management.Automation.Language.Parser]::ParseFile('${escapedPath}', [ref]$tokens, [ref]$errors) | Out-Null`,
+          'if ($errors.Count -gt 0) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }',
+        ].join('; ');
+        const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', parser], {
+          encoding: 'utf8',
+        });
+        expect(result.status, `${path.basename(scriptPath)}\n${result.stderr}`).toBe(0);
+      }
+    }
+  });
+
   it('owns one ECO worker and one verified tunnel-client child without broad process kills', async () => {
     const common = await readFile(path.join(root, 'scripts', 'lib', 'eco-headless-common.ps1'), 'utf8');
     const start = await readFile(path.join(root, 'scripts', 'start-eco-tunnel.ps1'), 'utf8');
