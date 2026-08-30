@@ -35,8 +35,22 @@ async function runPowerShell(scriptPath) {
   ], { cwd: root, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
 }
 
-async function runEsbuild(entry, outfile) {
+async function runWindowsCommand(command) {
   const commandProcessor = process.env.ComSpec ?? process.env.COMSPEC ?? 'cmd.exe';
+  await execFileAsync(commandProcessor, ['/d', '/s', '/c', command], {
+    cwd: root,
+    windowsHide: true,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+}
+
+async function buildCliWorkspaceDependencies() {
+  await runWindowsCommand(
+    'corepack pnpm@10.15.0 --filter @lnwjud/cli... --workspace-concurrency=1 run build',
+  );
+}
+
+async function runEsbuild(entry, outfile) {
   const command = [
     'corepack pnpm@10.15.0 --filter @lnwjud/desktop exec esbuild',
     entry,
@@ -45,11 +59,7 @@ async function runEsbuild(entry, outfile) {
     '--format=cjs',
     `--outfile=${outfile}`,
   ].join(' ');
-  await execFileAsync(commandProcessor, ['/d', '/s', '/c', command], {
-    cwd: root,
-    windowsHide: true,
-    maxBuffer: 16 * 1024 * 1024,
-  });
+  await runWindowsCommand(command);
 }
 
 async function prepareWindowsRuntimeTools() {
@@ -65,6 +75,13 @@ async function build() {
   if (nodeMajor !== 24) throw new Error(`ECO Headless requires the build runtime to be Node.js 24.x; got ${process.versions.node}`);
 
   const rootPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+
+  // A clean pnpm install links workspace packages through their package exports,
+  // which point at dist/index.js. Build the CLI dependency graph here so
+  // build:eco is independently usable and does not depend on a prior root
+  // typecheck/build stage having populated workspace dist outputs.
+  await buildCliWorkspaceDependencies();
+
   await rm(distRoot, { recursive: true, force: true });
   await mkdir(distRoot, { recursive: true });
 
