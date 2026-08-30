@@ -13,6 +13,7 @@ const desktopBuildRoot = path.join(desktopRoot, 'build');
 const ripgrepSource = path.join(desktopBuildRoot, 'runtime-tools', 'ripgrep');
 const ocrSource = path.join(repoRoot, 'native', 'windows-ocr', 'bin', 'lnwjud-windows-ocr.exe');
 const windowsBridgeSource = path.join(repoRoot, 'packages', 'capabilities', 'src', 'windows-capability-bridge.ps1');
+const corepackCommand = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 
 if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error(`ECO Headless packaging currently supports Windows x64 only; got ${process.platform}/${process.arch}`);
@@ -31,7 +32,7 @@ function run(command, args, options = {}) {
 }
 
 function runPnpm(args, options = {}) {
-  run('corepack', ['pnpm@10.15.0', ...args], options);
+  run(corepackCommand, ['pnpm@10.15.0', ...args], options);
 }
 
 async function exists(filePath) {
