@@ -22,6 +22,18 @@ describe('ECO headless distribution', () => {
     expect(build).not.toContain("const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack'");
   });
 
+  it('builds the CLI workspace dependency graph before bundling a clean checkout', async () => {
+    const build = await readFile(path.join(repositoryRoot, 'scripts', 'build-eco-headless.mjs'), 'utf8');
+    const dependencyBuild = build.indexOf('corepack pnpm@10.15.0 --filter @lnwjud/cli...');
+    const mcpBundle = build.indexOf("runEsbuild('../cli/src/bin/mcp-stdio.ts'");
+    const configBundle = build.indexOf("runEsbuild('../cli/src/bin/eco-config.ts'");
+
+    expect(dependencyBuild).toBeGreaterThanOrEqual(0);
+    expect(build.slice(dependencyBuild, mcpBundle)).toContain('run build');
+    expect(dependencyBuild).toBeLessThan(mcpBundle);
+    expect(dependencyBuild).toBeLessThan(configBundle);
+  });
+
   it('packages one self-contained Windows stdio MCP runtime and config surface without Desktop/Electron dependencies', async () => {
     if (process.platform !== 'win32') return;
 
