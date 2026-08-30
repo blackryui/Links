@@ -17,7 +17,7 @@ function parseTunnelCommandArgv(raw: string): string[] {
   let inDouble = false;
   let escaped = false;
 
-  const push = () => {
+  const push = (): void => {
     if (current.length > 0) {
       args.push(current);
       current = '';
