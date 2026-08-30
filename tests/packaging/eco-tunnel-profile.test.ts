@@ -47,4 +47,10 @@ describe('ECO Secure MCP Tunnel stdio profile', () => {
     expect(setup).toContain("(Get-Content -LiteralPath $secretPath -Raw).Trim()");
     expect(setup).not.toContain('ConvertFrom-SecureString | Set-Content');
   });
+
+  it('trims a legacy encrypted runtime key before background startup decrypts it', async () => {
+    const start = await readFile(path.join(root, 'scripts', 'start-eco-tunnel.ps1'), 'utf8');
+
+    expect(start).toContain("(Get-Content -LiteralPath $secretPath -Raw).Trim()");
+  });
 });
