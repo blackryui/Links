@@ -1,6 +1,6 @@
 # ECO ChatGPT Web Plugin Setup
 
-ECO connects ChatGPT Web to the local Windows MCP runtime through **Secure MCP Tunnel**. The production path is headless and does not require lnwjud Desktop/Electron.
+ECO connects ChatGPT Web to the local Windows MCP runtime through **Secure MCP Tunnel**. The production path is headless and does not require lnwjud Desktop/Electron. ECO runs the shared upstream MCP runtime **over stdio** through a validated system Node 24 host.
 
 ```text
 ChatGPT Web -> Secure MCP Tunnel -> system Node 24 + eco-mcp.cjs -> upstream lnwjud stdio MCP runtime
