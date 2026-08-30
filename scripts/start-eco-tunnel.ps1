@@ -69,7 +69,8 @@ function Clear-EcoRuntimeKey {
 
 function Set-EcoRuntimeKey {
   Clear-EcoRuntimeKey
-  $encrypted = Get-Content -LiteralPath $secretPath -Raw
+  $encrypted = (Get-Content -LiteralPath $secretPath -Raw).Trim()
+  if ([string]::IsNullOrWhiteSpace($encrypted)) { throw "ECO runtime key file is empty: $secretPath" }
   $secureKey = ConvertTo-SecureString -String $encrypted
   $script:keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
   $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($script:keyPointer)
