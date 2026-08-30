@@ -32,12 +32,14 @@ $mcpCommand = New-EcoDirectMcpCommand -RuntimePackage $runtimePackage -AllowedRo
 
 if ($ReplaceRuntimeKey -or -not (Test-Path -LiteralPath $secretPath -PathType Leaf)) {
   $secureKey = Read-Host 'OpenAI Tunnel runtime API key' -AsSecureString
-  $secureKey | ConvertFrom-SecureString | Set-Content -LiteralPath $secretPath -Encoding UTF8
+  $encrypted = $secureKey | ConvertFrom-SecureString
+  [IO.File]::WriteAllText($secretPath, $encrypted, [Text.UTF8Encoding]::new($false))
 }
 
 $keyPointer = $null
 try {
-  $encrypted = Get-Content -LiteralPath $secretPath -Raw
+  $encrypted = (Get-Content -LiteralPath $secretPath -Raw).Trim()
+  if ([string]::IsNullOrWhiteSpace($encrypted)) { throw "ECO runtime key file is empty: $secretPath" }
   $secureKey = ConvertTo-SecureString -String $encrypted
   $keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
   $env:CONTROL_PLANE_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
