@@ -11,18 +11,29 @@ describe('MVP release verification gate', () => {
       'install --frozen-lockfile',
       'lint',
       'typecheck',
+      'validate:eco:parity',
+      'test:eco:parity',
+      'test:eco:packaging',
       'test:release',
+      'build:eco',
+      'smoke:eco:local',
+      'test:eco:built-package',
+      'test:plugin',
+      'validate:plugin',
       'test:acceptance',
       'test:integration',
       'test:e2e',
       'build',
+      'docs:tools:check',
+      'validate:eco:release',
       'test:packaging',
       'test:release-gate',
       'package:windows',
     ];
     let previousIndex = -1;
     for (const stage of stages) {
-      const index = script.indexOf(stage);
+      const invocation = `Invoke-ReleaseStage '${stage}'`;
+      const index = script.indexOf(invocation);
       expect(index, `missing release stage: ${stage}`).toBeGreaterThan(previousIndex);
       previousIndex = index;
     }
