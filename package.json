@@ -8,7 +8,7 @@
   },
   "type": "module",
   "scripts": {
-    "set-version": "node scripts/set-version.mjs",
+    "set-version": "node scripts/set-version-with-eco.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --build",
     "test": "corepack pnpm@10.15.0 -r --if-present test",
