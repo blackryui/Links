@@ -14,6 +14,7 @@
     "test": "corepack pnpm@10.15.0 -r --if-present test",
     "test:release": "corepack pnpm@10.15.0 -r --workspace-concurrency=1 --if-present test",
     "validate:eco:parity": "node scripts/verify-eco-parity.mjs",
+    "validate:eco:release": "node scripts/verify-eco-parity.mjs --release --check-upstream-main",
     "test:eco:parity": "vitest run tests/integration/eco-capability-catalog.test.ts --exclude=.local-artifacts/**",
     "test:eco:packaging": "vitest run tests/packaging/eco-headless-packaging.test.ts tests/packaging/eco-tunnel-profile.test.ts tests/packaging/eco-tunnel-lifecycle.test.ts --exclude=.local-artifacts/**",
     "build:eco": "node scripts/build-eco-headless.mjs",
