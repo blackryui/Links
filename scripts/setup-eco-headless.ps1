@@ -35,7 +35,7 @@ if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw "ECO confi
 
 function Invoke-EcoConfig([string[]]$Arguments) {
   & $runtimePackage.nodePath $configPath @Arguments
-  if ($LASTEXITCODE -ne 0) { throw "ECO config failed with exit code $LASTEXITCODE: $($Arguments -join ' ')" }
+  if ($LASTEXITCODE -ne 0) { throw "ECO config failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')" }
 }
 
 # Persist the same boundary policy used by the ChatGPT tunnel so another MCP
