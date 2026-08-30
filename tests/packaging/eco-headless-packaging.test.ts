@@ -17,11 +17,13 @@ describe('ECO headless packaging contract', () => {
     expect(build).not.toContain('copyFile(process.execPath');
   });
 
-  it('resolves the Corepack command through the Windows .cmd shim when building ECO', async () => {
+  it('runs Corepack through the Windows command processor instead of spawning a .cmd shim directly', async () => {
     const build = await readFile(path.join(root, 'scripts', 'build-eco-headless.mjs'), 'utf8');
 
-    expect(build).toContain("process.platform === 'win32' ? 'corepack.cmd' : 'corepack'");
-    expect(build).toContain("run(corepackCommand, ['pnpm@10.15.0', ...args], options)");
+    expect(build).toContain("process.env.ComSpec ?? process.env.COMSPEC ?? 'cmd.exe'");
+    expect(build).toContain("['/d', '/s', '/c', commandLine]");
+    expect(build).toContain("['corepack', 'pnpm@10.15.0', ...args]");
+    expect(build).not.toContain("process.platform === 'win32' ? 'corepack.cmd' : 'corepack'");
   });
 
   it('keeps upstream/native helper executables distinct from the ECO JavaScript host', async () => {
