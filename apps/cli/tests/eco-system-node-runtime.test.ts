@@ -15,11 +15,18 @@ describe('ECO system Node runtime', () => {
     expect(() => assertEcoNode24Version('v25.0.0')).toThrow(/requires Node\.js 24\.x/i);
   });
 
-  it('resolves Node from PATH when no explicit executable is supplied', async () => {
-    const runtime = await resolveEcoNodeRuntime(undefined, process.env);
+  it('resolves Node directly from a controlled PATH without depending on a locator executable', async () => {
+    const env = {
+      PATH: path.dirname(process.execPath),
+    };
+    const runtime = await resolveEcoNodeRuntime(undefined, env);
 
-    expect(runtime.nodePath.toLowerCase()).toMatch(/node(?:\.exe)?$/i);
+    expect(path.resolve(runtime.nodePath)).toBe(path.resolve(process.execPath));
     expect(runtime.version).toMatch(/^v?24\./);
+  });
+
+  it('fails closed when PATH has no Node executable', async () => {
+    await expect(resolveEcoNodeRuntime(undefined, { PATH: '' })).rejects.toThrow(/could not resolve Node\.js 24\.x from PATH/i);
   });
 
   it('fails closed when an explicit Node executable does not exist', async () => {
