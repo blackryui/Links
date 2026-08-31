@@ -1,39 +1,25 @@
 ---
 name: lnwjud-long-session
-description: Use when a lnwjud goal may exceed one ChatGPT run and must continue safely through durable checkpoints plus one-time native ChatGPT Scheduled Task successors without overlapping local mutations.
+description: Use when a durable lnwjud goal may span multiple ChatGPT turns and must continue safely through checkpoints, leases, tracked tasks, and host-owned one-time scheduled successors.
 ---
 
 # lnwjud Long Session
 
-Use lnwjud durable goal state for work continuity and native ChatGPT Scheduled Tasks only for future wakes. Preserve the safety invariants of `.agents/skills/lnwjud-scheduled-continuation/SKILL.md`.
+Use lnwjud durable goal state for continuity. The authoritative continuation workflow is `.agents/skills/lnwjud-scheduled-continuation/SKILL.md`; read and follow that current skill rather than duplicating its lease durations, scheduling delays, collision rules, receipt semantics, or terminal-state protocol here.
 
-## Initial or manually resumed run
+## Routing workflow
 
-1. Start or resume a stable goal with `run_goal`; do not create a second goal for the same durable work.
-2. Work normally and checkpoint meaningful milestones with `checkpoint_goal`.
-3. Do not schedule a successor at run start.
-4. Only when the host run is genuinely near its handoff boundary and meaningful work remains, call `prepare_scheduled_continuation` once.
-5. Create exactly one native one-time ChatGPT Scheduled Task from the returned request, then record the real creation result with `record_scheduled_continuation_receipt`.
-6. The predecessor may continue only while its lease remains valid and must stop mutation at the handoff deadline.
+1. Use `run_goal` to create or resume one stable durable goal for the work.
+2. Record meaningful progress and tracked work through `checkpoint_goal` using the current goal revision/lease contract.
+3. When automatic scheduled continuation is active, apply the bundled `lnwjud-scheduled-continuation` skill exactly as the current runtime directs.
+4. Recover background work through its recorded provider/task ID instead of restarting mutations blindly.
+5. Before reporting completion, inspect terminal task results, satisfy the requested acceptance evidence, call `finish_goal`, and require the durable goal to be terminal.
 
-## Scheduled successor
+## Boundaries
 
-1. Call `claim_scheduled_continuation` before any local file, Git, process, UI, or other mutation.
-2. `terminal_noop`: stop; the goal is already terminal.
-3. `already_claimed`: stop; another run consumed the continuation.
-4. `busy_blocked`: do not mutate and do not create a polling loop.
-5. `acquired`: resume from the durable checkpoint and work as a normal full run.
-6. Prepare another single successor only near this run's own handoff boundary if work remains.
-
-## Completion
-
-- Finish terminal work with `finish_goal`.
-- Follow the exact native Scheduled Task cancellation instruction returned by the goal state and record the actual cancellation receipt.
-- If cancellation is uncertain, keep the durable goal terminal; a later wake must no-op rather than restart work.
-
-## Hard boundaries
-
-- Never use Windows Task Scheduler, `schtasks.exe`, cron, shell timers, or an undocumented scheduling API as a fallback.
-- Never create recurring two-minute retries for continuation.
-- Never allow overlapping mutation leases for the same durable goal/workspace.
-- Execution preference is not proof of cloud/local execution; record only what the host confirms.
+- Never invent or hard-code continuation timing when the authoritative bundled skill/runtime provides it.
+- Never expose lease tokens, credentials, private source text, or internal session identifiers in user-visible or scheduled-task prompts.
+- Never use Windows Task Scheduler, `schtasks.exe`, cron, shell timers, or browser automation as a substitute for the host-owned ChatGPT scheduled-continuation contract.
+- Never allow overlapping mutation ownership for the same durable goal/workspace.
+- Cancelling a scheduled successor and cancelling the durable goal are separate operations; follow the runtime result for each.
+- Do not report completion while the durable goal remains active or required task/cancellation evidence is unresolved.

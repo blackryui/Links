@@ -1,29 +1,31 @@
 ---
 name: lnwjud-development
-description: Use when software-development work should run through lnwjud, including Git inspection, code navigation, implementation, project test/lint/typecheck/build commands, review context, affected tests, or optional local Codex delegation.
+description: Use when software-development work should run through the shared lnwjud MCP runtime, including Git inspection, code navigation, implementation, project verification, review context, or optional local Codex delegation.
 ---
 
 # lnwjud Development
 
-Route development work to the existing lnwjud code, Git, project-command, and context tools without duplicating their schemas.
+Route development work through the current lnwjud code, Git, project-command, context, and optional Codex tools without duplicating their schemas or advertisement policy.
 
 ## Workflow
 
 1. Inspect `git_status` and the relevant code/context before changing anything.
-2. Prefer semantic/code-navigation tools (`symbol_search`, definitions, references, dependency/context tools) when they answer the question more precisely than broad file scans.
-3. Make focused edits with the core file-routing rules.
-4. Run the narrowest meaningful verification first: affected tests or project-specific test/lint/typecheck/build commands, then broaden only when needed.
+2. Prefer semantic/code-navigation tools when they answer the question more precisely than broad file scans.
+3. Make focused edits through guarded file tools.
+4. Run the narrowest meaningful verification first, then broaden only when the task requires it.
 5. Review the resulting Git diff and affected modules before reporting completion.
 
 ## Codex delegation
 
-- Treat the six `codex_*` tools as optional. The runtime advertises 221 tools by default and exposes all 227 only when Codex delegation is enabled.
-- Check Codex capability/status before delegating. Do not assume the local Codex runtime exists or is authenticated.
+- Treat `codex_*` tools as optional upstream capabilities controlled by shared lnwjud settings and runtime availability.
+- Check Codex capability/status before delegating. Do not assume Codex is installed or authenticated.
 - Never read or copy Codex credential files to make delegation work.
-- A delegated task remains subject to lnwjud workspace, command, and approval policy.
+- Delegated work remains subject to the same workspace, permission, command, approval, and recovery boundaries.
+- Codex Desktop acting as an MCP client is separate from optional `codex_*` delegation tools.
 
 ## Boundaries
 
 - Do not alter ToolRegistry defaults merely to satisfy one development request.
-- Do not use opaque shell commands for source edits when `edit_file`, `apply_patch`, or `write_file` is appropriate.
-- Do not claim tests passed unless a completed verification result supports it.
+- Do not hard-code advertised tool counts; use the live synchronized registry.
+- Do not use opaque shell commands for source edits when guarded file tools are appropriate.
+- Do not claim tests or builds passed unless completed verification evidence supports it.

@@ -1,7 +1,7 @@
 {
   "name": "eco",
-  "version": "4.13.0",
-  "description": "ECO connects ChatGPT and Codex to the lnwjud Windows-first local MCP runtime.",
+  "version": "4.31.0",
+  "description": "ECO connects ChatGPT Web and Codex Desktop to the latest lnwjud-compatible Windows runtime through headless MCP.",
   "author": {
     "name": "Adisorn / lnwjud project",
     "url": "https://github.com/engasnm111/lnwjud"
@@ -13,8 +13,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "ECO",
-    "shortDescription": "Use ECO to work with your Windows machine",
-    "longDescription": "ECO routes ChatGPT and Codex workflows to the connected lnwjud MCP runtime. Files, processes, Windows automation, browser control, Office actions, and other side effects continue to run on the user's Windows machine under lnwjud permissions and approval boundaries.",
+    "shortDescription": "Use ECO headless MCP with local Windows projects",
+    "longDescription": "ECO routes ChatGPT Web through Secure MCP Tunnel and lets Codex Desktop use the same headless stdio MCP runtime. Files, Git, processes, browser, Windows automation, Office, WSL, recovery, tasks, and other capabilities remain in the upstream-derived lnwjud runtime under shared workspace, permission, and safety boundaries; lnwjud Desktop/Electron is not required.",
     "developerName": "ECO",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Read", "Write"],
@@ -22,9 +22,9 @@
     "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
     "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
     "defaultPrompt": [
-      "Use ECO to list workspaces, show Git status for the active project, and summarize the top-level tree without changes.",
-      "Use ECO to inspect this project, make the requested code change, run the narrow relevant tests, and show the Git diff.",
-      "Use ECO to observe the Windows target first, then perform only the requested UI action within current permissions."
+      "Use ECO to inspect the active project and summarize its Git status without making changes.",
+      "Use ECO to implement this change, run focused tests, and show the resulting Git diff.",
+      "Use ECO to inspect the Windows target first, then perform only the requested action."
     ],
     "brandColor": "#0078D4",
     "composerIcon": "./assets/logo/logo-256x256.png",
