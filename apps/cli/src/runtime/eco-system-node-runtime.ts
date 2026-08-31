@@ -56,22 +56,33 @@ async function resolveExplicitNode(value: string): Promise<string> {
 }
 
 async function resolveNodeFromPath(env: NodeJS.ProcessEnv): Promise<string> {
-  const locator = process.platform === 'win32' ? 'where.exe' : 'which';
-  const executable = process.platform === 'win32' ? 'node.exe' : 'node';
-  try {
-    const { stdout } = await execFileAsync(locator, [executable], {
-      env,
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 10_000,
-    });
-    const candidate = stdout
-      .split(/\r?\n/)
-      .map((entry) => entry.trim())
-      .find((entry) => entry.length > 0);
-    if (candidate !== undefined) return path.resolve(candidate);
-  } catch {
-    // Fall through to the fail-closed error below.
+  const pathValue = readPathEnvironment(env);
+  if (pathValue !== undefined && pathValue.trim().length > 0) {
+    const executable = process.platform === 'win32' ? 'node.exe' : 'node';
+    for (const rawDirectory of pathValue.split(path.delimiter)) {
+      const directory = stripSurroundingQuotes(rawDirectory.trim());
+      if (directory.length === 0) continue;
+      const candidate = path.resolve(directory, executable);
+      try {
+        await access(candidate);
+        return candidate;
+      } catch {
+        // Continue scanning PATH entries without spawning where.exe/which.
+      }
+    }
   }
   throw new Error('ECO Headless could not resolve Node.js 24.x from PATH. Install Node.js 24 or provide an explicit Node path.');
+}
+
+function readPathEnvironment(env: NodeJS.ProcessEnv): string | undefined {
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toLowerCase() === 'path' && typeof value === 'string') return value;
+  }
+  return undefined;
+}
+
+function stripSurroundingQuotes(value: string): string {
+  return value.length >= 2 && value.startsWith('"') && value.endsWith('"')
+    ? value.slice(1, -1)
+    : value;
 }
